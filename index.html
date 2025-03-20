@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Code Editor</title>
+
+    <!-- ✅ Load Firebase SDK First -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+    <!-- ✅ Prevent AMD Conflicts for Pyodide -->
+    <script>
+        var define = null; // Temporarily disable AMD to prevent conflicts
+    </script>
+
+    <!-- ✅ Load Pyodide First -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+
+    <!-- ✅ Restore AMD after Pyodide loads -->
+    <script>
+        delete window.define;
+    </script>
+
+    <!-- ✅ Load Monaco Editor (Ensure AMD Works) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.js"></script>
+    <script>
+        require.config({
+            paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' }
+        });
+    </script>
+    <!-- ✅ Load Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- ✅ Navigation Bar -->
+    <nav class="navbar">
+        <button id="themeToggle" title="Toggle Theme">🌙</button>
+        <h1 class="navbar-heading">Easy Code Editor</h1>
+        <div id="authSection">
+            <button id="signInBtn" title="Sign in with Google">
+                <img src="images/Google.jpeg" alt="Google Sign-In">
+            </button>
+            <button id="signOutBtn" style="display: none;" title="Sign Out">
+                <img src="images/power.png" alt="Sign Out">
+            </button>
+            <span id="userInfo">Not signed in</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="top-bar">
+            <label for="language">Language:</label>
+            <select id="language">
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="c">C</option>
+                <option value="java">Java</option>
+            </select>
+            <button id="run" class="tooltip" data-tooltip="Run Code">
+                <img src="images/run.png" alt="run-btn">
+            </button>
+            <button id="clear" class="tooltip" data-tooltip="Clear Output">
+                <img src="images/clear.png" alt="clear-btn">
+            </button>
+            <button id="download" class="tooltip" data-tooltip="Download Code">
+                <img src="images/download.png" alt="download-btn">
+            </button>
+                        <!-- Add this near the top-bar or output area -->
+            <div id="pythonStatus" style="color: green; margin-left: 10px;"></div>
+            <div id="loadingSpinner" style="display: none; margin-left: 10px;">⏳ Loading Python...</div>
+        </div>
+
+        <div class="editor-output-container">
+            <!-- Left: Code Editor -->
+            <div class="editor-container">
+                <div id="editor" style="height: 100%;"></div> <!-- Monaco will use this div -->
+            </div>
+
+            <!-- Right: Input & Output -->
+            <div class="io-container">
+                <textarea id="input" placeholder="Enter input data..."></textarea>
+                <pre id="output"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ Load JavaScript -->
+    <script src="script.js" defer></script>
+</body>
+</html>
