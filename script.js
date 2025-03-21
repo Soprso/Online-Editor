@@ -162,6 +162,43 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     // ===============================
+    // ✅ Resize Handle Logic
+    // ===============================
+    const editorContainer = document.querySelector(".editor-container");
+const ioContainer = document.querySelector(".io-container");
+const resizeHandle = document.querySelector(".resize-handle");
+
+let isDragging = false;
+
+// Start dragging
+resizeHandle.addEventListener("mousedown", function (e) {
+    isDragging = true;
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", stopDragging);
+});
+
+// Handle mouse movement during dragging
+function handleMouseMove(e) {
+    if (!isDragging) return;
+
+    // Calculate new width for io-container
+    const editorWidth = editorContainer.offsetWidth; // Fixed width of editor-container
+    const ioWidth = window.innerWidth - e.clientX - editorWidth; // Adjust for editor width
+    const minWidth = 200; // Minimum width for io-container
+
+    // Apply new width if it's above the minimum
+    if (ioWidth >= minWidth) {
+        ioContainer.style.flex = `0 0 ${ioWidth}px`;
+    }
+}
+
+// Stop dragging
+function stopDragging() {
+    isDragging = false;
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", stopDragging);
+}
+    // ===============================
     // ✅ Apply Theme on Page Load
     // ===============================
     const themeToggle = document.getElementById("themeToggle");
@@ -191,7 +228,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     // ===============================
     // ✅ Python Execution with Pyodide
     // ===============================
-    let pyodideReadyPromise = null;
     const loadingSpinner = document.getElementById("loadingSpinner");
     const pythonStatus = document.getElementById("pythonStatus");
 
@@ -216,7 +252,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             window.pyodide.setStdout({
                 batched: (text) => {
-                    outputArea.innerText += text+"\n";
+                    outputArea.innerText += text + "\n"; // Add newline after each output
                     outputArea.scrollTop = outputArea.scrollHeight; // Auto-scroll
                 },
             });
