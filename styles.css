@@ -333,24 +333,20 @@ body.light-theme #themeToggle:hover {
 
 /* IO Container */
 .io-container {
-    flex: 0 0 30%;
+    flex: 0 0 30%; /* Takes 30% of the parent container */
     background: var(--output-bg-dark);
-    /* padding: 10px; */
-    /* border-radius: 5px; */
     display: flex;
     flex-direction: column;
-    gap: 5px;
     min-width: 200px;
     overflow: hidden;
     box-shadow: 0 0 2px yellowgreen;
+    height: 70vh; /* Fixed height for percentage-based sizing */
 }
-
-/* Input Field */
+/* Input Section */
 #input {
-    flex: 1;
+    flex: 0 0 30%; /* Takes 30% of the io-container */
     background: var(--input-bg-dark);
     padding: 10px;
-    /* border-radius: 5px; */
     color: white;
     border: none;
     outline: none;
@@ -366,20 +362,18 @@ body.light-theme #input {
 }
 
 /* Output Box */
+/* Output Section */
 #output {
-    flex: 1;
+    flex: 0 0 50%; /* Takes 50% of the io-container */
     background: var(--output-bg-dark);
     padding: 10px;
-    /* border-radius: 5px; */
     color: white;
     font-size: 14px;
-    min-height: 50%;
     overflow-y: auto;
     white-space: pre-wrap;
     transition: all 0.3s ease;
     box-shadow: 0 0 2px yellowgreen;
 }
-
 body.light-theme #output {
     background: var(--output-bg-light);
     color: black;
@@ -560,78 +554,76 @@ body.light-theme .loading-screen p {
     z-index: 2000;
     justify-content: center;
     align-items: center;
-  }
-  
-  .settings-content {
+}
+
+.settings-content {
     background: var(--bg-color-dark);
-    border-radius: 2px;
+    border-radius: 5px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     width: 300px;
     max-width: 90%;
     overflow: hidden;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 2px yellowgreen;
-  }
-  
-  /* Light Theme for Settings Modal */
-  body.light-theme .settings-content {
+}
+
+/* Light Theme Adjustments */
+body.light-theme .settings-content {
     background: var(--bg-color-light);
     color: var(--text-color-light);
-  }
-  
-  /* Modal Header */
-  .settings-header {
+}
+
+/* Modal Header */
+.settings-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 15px;
     background: var(--output-bg-dark);
     border-bottom: 1px solid var(--border-color-dark);
-  }
-  
-  body.light-theme .settings-header {
+}
+
+body.light-theme .settings-header {
     background: var(--output-bg-light);
     border-bottom: 1px solid var(--border-color-light);
-  }
-  
-  .settings-header h3 {
+}
+
+.settings-header h3 {
     margin: 0;
     font-size: 1.2rem;
-  }
-  
-  .close-btn {
+}
+
+.close-btn {
     background: none;
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
     color: var(--text-color-dark);
     transition: color 0.3s ease;
-  }
-  
-  body.light-theme .close-btn {
+}
+
+body.light-theme .close-btn {
     color: var(--text-color-light);
-  }
-  
-  .close-btn:hover {
+}
+
+.close-btn:hover {
     color: yellowgreen; /* Red on hover */
-  }
-  
-  /* Modal Body */
-  .settings-body {
+}
+
+/* Modal Body */
+.settings-body {
     padding: 15px;
-  }
-  
-  .setting-item {
+}
+
+.setting-item {
     margin: 10px 0;
-  }
-  
-  .setting-item label {
+}
+
+.setting-item label {
     display: block;
     margin-bottom: 5px;
     font-size: 0.9rem;
-  }
-  
-  .setting-item input {
+}
+
+.setting-item input {
     width: 100%;
     padding: 8px;
     border: 1px solid var(--border-color-dark);
@@ -639,59 +631,58 @@ body.light-theme .loading-screen p {
     background: var(--input-bg-dark);
     color: var(--text-color-dark);
     font-size: 0.9rem;
-  }
-  
-  body.light-theme .setting-item input {
+}
+
+body.light-theme .setting-item input {
     border: 1px solid var(--border-color-light);
     background: var(--input-bg-light);
     color: var(--text-color-light);
-  }
-  
-  /* Modal Footer */
-  .settings-footer {
+}
+
+/* Modal Footer */
+.settings-footer {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     padding: 15px;
     background: var(--output-bg-dark);
     border-top: 1px solid var(--border-color-dark);
-  }
-  
-  body.light-theme .settings-footer {
+}
+
+body.light-theme .settings-footer {
     background: var(--output-bg-light);
     border-top: 1px solid var(--border-color-light);
-  }
-  
-  .save-btn,
-  .cancel-btn {
+}
+
+.save-btn,
+.cancel-btn {
     padding: 8px 15px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9rem;
     transition: background-color 0.3s ease, transform 0.2s ease;
-  }
-  
-  .save-btn {
+}
+
+.save-btn {
     background: yellowgreen;
     color: var(--bg-color-dark);
-  }
-  
-  .save-btn:hover {
+}
+
+.save-btn:hover {
     background: #218838;
     transform: scale(1.05);
-  }
-  
-  .cancel-btn {
+}
+
+.cancel-btn {
     background: #dc3545;
     color: white;
-  }
-  
-  .cancel-btn:hover {
+}
+
+.cancel-btn:hover {
     background: #c82333;
     transform: scale(1.05);
-  }
-
+}
   /* 🐸 Frog Icon in Modal Header */
 .modal-frog-icon {
     width: 30px; /* Match navbar icon size */
@@ -718,3 +709,69 @@ body.light-theme .loading-screen p {
       height: 25px;
     }
   }
+
+ /* Error Console Section */
+#error-console {
+    flex: 0 0 20%; /* Takes 20% of the io-container */
+    background: var(--output-bg-dark);
+    border-top: 2px solid #dc3545;
+    overflow-y: auto;
+}
+
+.console-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: #dc354633;
+}
+
+#error-output {
+    padding: 10px;
+    color: #ff6b6b;
+    white-space: pre-wrap;
+    font-family: monospace;
+}
+/* Error Console Section */
+#error-console {
+    flex: 0 0 20%; /* Takes 20% of the io-container */
+    background: var(--output-bg-dark);
+    border-top: 2px solid #dc3545;
+    overflow-y: auto;
+}
+
+.console-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: #dc354633;
+}
+
+#error-output {
+    padding: 10px;
+    color: #ff6b6b;
+    white-space: pre-wrap;
+    font-family: monospace;
+}
+
+  
+  /* Light Theme Adjustments */
+body.light-theme #output {
+    background: var(--output-bg-light);
+    color: black;
+}
+
+body.light-theme #error-console {
+    background: var(--output-bg-light);
+    border-color: #ffcccc;
+}
+
+body.light-theme #error-output {
+    color: #cc0000;
+}
+
+body.light-theme #input {
+    background: var(--input-bg-light);
+    color: black;
+}

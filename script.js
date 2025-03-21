@@ -1,4 +1,4 @@
-window.onload = function () {
+document.addEventListener("DOMContentLoaded", function () {
     console.log("🚀 Page Loaded");
 
     // Hide the loading screen after the page is fully loaded
@@ -13,7 +13,7 @@ window.onload = function () {
     }
     console.log("✅ Firebase SDK loaded successfully!");
 
-    // ✅ Firebase Config
+    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyCX9GbECMPsHsFlLF6nwyYwThxEjQo6wjY",
         authDomain: "easy-code-editor-e872b.firebaseapp.com",
@@ -24,7 +24,7 @@ window.onload = function () {
         measurementId: "G-P9HGH70TN4"
     };
 
-    // ✅ Initialize Firebase (Prevent Multiple Initializations)
+    // Initialize Firebase (Prevent Multiple Initializations)
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
         console.log("✅ Firebase Initialized Successfully");
@@ -39,7 +39,7 @@ window.onload = function () {
     const signOutButton = document.getElementById("signOutBtn");
     const userInfo = document.getElementById("userInfo");
 
-    // ✅ Ensure Elements Exist Before Adding Listeners
+    // Ensure Elements Exist Before Adding Listeners
     if (signInButton && signOutButton && userInfo) {
         auth.onAuthStateChanged((user) => {
             if (user) {
@@ -91,12 +91,14 @@ window.onload = function () {
             return;
         }
 
-        // ✅ Create the Editor
+        // Create the Editor
         window.editor = monaco.editor.create(editorContainer, {
             value: localStorage.getItem("editorCode") || 'console.log("Hello, World!");',
             language: "javascript",
             theme: "vs-dark",
-            automaticLayout: true
+            automaticLayout: true,
+            fontSize: parseInt(localStorage.getItem("editorFontSize") || 14),
+            tabSize: parseInt(localStorage.getItem("editorTabSize") || 4)
         });
 
         // Save the editor's content to localStorage whenever it changes
@@ -105,7 +107,7 @@ window.onload = function () {
             localStorage.setItem("editorCode", code);
         });
 
-        // ✅ Language Change Event
+        // Language Change Event
         const languageDropdown = document.getElementById("language");
         if (languageDropdown) {
             // Restore the selected language from localStorage
@@ -140,21 +142,40 @@ window.onload = function () {
                 console.error("❌ Failed to create new Monaco model!");
             }
         }
+
+        // ✅ Keyboard Shortcuts
+        document.addEventListener("keydown", (e) => {
+            // Ctrl/Cmd + Enter to run code
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault(); // Prevent default behavior (e.g., form submission)
+                document.getElementById("run").click(); // Trigger run button
+                animateRunButton(); // Visual feedback (optional)
+            }
+        });
+
+        // Disable Monaco's default Ctrl+Enter behavior
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            document.getElementById("run").click();
+        });
     });
 
+    // ===============================
     // ✅ Clear Output
+    // ===============================
     document.getElementById("clear").addEventListener("click", function () {
         document.getElementById("output").textContent = ""; // Clears the output
         console.log("✅ Output cleared");
     });
 
+    // ===============================
     // ✅ Download Code
+    // ===============================
     document.getElementById("download").addEventListener("click", function () {
         const code = editor.getValue(); // Get the code from Monaco Editor
         const lang = document.getElementById("language").value; // Get the selected language
         const extension = lang === "javascript" ? "js" : "py"; // Set file extension
 
-        // ✅ Create a downloadable file
+        // Create a downloadable file
         const blob = new Blob([code], { type: "text/plain" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
@@ -202,7 +223,9 @@ window.onload = function () {
         document.removeEventListener("mouseup", stopDragging);
     }
 
-    // ✅ Show Loading Screen
+    // ===============================
+    // ✅ Loading Screen Functions
+    // ===============================
     function showLoadingScreen() {
         const loadingScreen = document.getElementById("loadingScreen");
         if (loadingScreen) {
@@ -212,7 +235,6 @@ window.onload = function () {
         }
     }
 
-    // ✅ Hide Loading Screen
     function hideLoadingScreen() {
         const loadingScreen = document.getElementById("loadingScreen");
         if (loadingScreen) {
@@ -224,9 +246,8 @@ window.onload = function () {
         }
     }
 
-    
     // ===============================
-    // ✅ Apply Theme on Page Load
+    // ✅ Theme Logic
     // ===============================
     const themeToggle = document.getElementById("themeToggle");
     const savedTheme = localStorage.getItem("theme") || "dark-theme"; // Default to dark mode
@@ -309,43 +330,48 @@ window.onload = function () {
         }
     });
 
-    // ======================================= RUN CODE =======================================
+    // ===============================
+    // ✅ Run Code Logic
+    // ===============================
     document.getElementById("run").addEventListener("click", async function () {
         const code = editor.getValue();
         const lang = document.getElementById("language").value;
         const outputArea = document.getElementById("output");
+        const errorOutput = document.getElementById("error-output");
         const inputArea = document.getElementById("input");
-    
+
         if (!code.trim()) {
             outputArea.innerText = "Error: The code editor is empty. Please write some code.";
             return;
         }
-    
-        outputArea.innerText = "Running..."+"\n\n";
+
+        // Clear previous output and errors
+        outputArea.innerText = "Running..." + "\n\n";
+        errorOutput.textContent = ""; // Clear error output
         showLoadingScreen();
-    
+
         try {
             let startTime, endTime;
-    
+
             if (lang === "javascript") {
-                // ✅ Initialize execution timer
+                // Initialize execution timer
                 startTime = performance.now();
-    
-                // ✅ Override console.log to capture output
+
+                // Override console.log to capture output
                 const originalConsoleLog = console.log;
                 console.log = function (...args) {
-                    const message = args.map(arg => 
+                    const message = args.map(arg =>
                         typeof arg === "object" ? JSON.stringify(arg) : arg
                     ).join(" ");
                     outputArea.innerText += message + "\n"; // Append to output
                     originalConsoleLog.apply(console, args); // Preserve original behavior
                 };
-    
-                // ✅ Track pending async operations
+
+                // Track pending async operations
                 let pendingAsync = 0;
                 const originalSetTimeout = window.setTimeout;
                 const originalFetch = window.fetch;
-    
+
                 // Override setTimeout to track pending timers
                 window.setTimeout = (callback, delay, ...args) => {
                     pendingAsync++; // Increment counter
@@ -355,7 +381,7 @@ window.onload = function () {
                     }, delay, ...args);
                     return timerId;
                 };
-    
+
                 // Override fetch to track pending requests
                 window.fetch = (...args) => {
                     pendingAsync++; // Increment counter
@@ -363,8 +389,8 @@ window.onload = function () {
                         pendingAsync--; // Decrement when the request completes
                     });
                 };
-    
-                // ✅ Execute the user's code
+
+                // Execute the user's code
                 const inputData = inputArea.value;
                 const jsCodeWithInput = `
                     (function() {
@@ -372,173 +398,157 @@ window.onload = function () {
                         ${code}
                     })();
                 `;
-    
+
                 let result;
                 try {
                     result = new Function(jsCodeWithInput)();
                 } catch (error) {
                     console.error("JavaScript Execution Error:", error);
+                    errorOutput.textContent = `JavaScript Error: ${error.message}`;
                 }
-    
-                // ✅ Wait for all pending async operations to complete
+
+                // Wait for all pending async operations to complete
                 const MAX_WAIT_TIME = (localStorage.getItem("executionTimeout") || 20) * 1000; // Use saved timeout (default: 20s)
                 const startWaitTime = Date.now();
                 while (pendingAsync > 0 && Date.now() - startWaitTime < MAX_WAIT_TIME) {
                     await new Promise(resolve => originalSetTimeout(resolve, 100));
                 }
-    
-                // ✅ Restore original APIs
+
+                // Restore original APIs
                 window.setTimeout = originalSetTimeout;
                 window.fetch = originalFetch;
                 console.log = originalConsoleLog;
-    
+
                 endTime = performance.now();
                 const executionTime = (endTime - startTime).toFixed(2);
                 outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
-    
+
             } else if (lang === "python") {
                 if (!window.pyodide) {
                     outputArea.innerText = "Python is still loading... Please wait.";
                     await initializePyodide();
                 }
-    
-                // ✅ Start execution timer
+
+                // Start execution timer
                 startTime = performance.now();
-    
-                // ✅ Pass input to Python code
+
+                // Pass input to Python code
                 const inputData = inputArea.value;
                 const pythonCodeWithInput = `
                     import sys
                     __input_data = """${inputData}"""  
                     ${code}
                 `;
-    
-                // ✅ Clear output before running Python code
+
+                // Clear output before running Python code
                 outputArea.innerText = "";
-    
-                // ✅ Redirect Python's stdout to the output area
+
+                // Redirect Python's stdout to the output area
                 window.pyodide.setStdout({
                     batched: (text) => {
                         outputArea.innerText += text + "\n";
                         outputArea.scrollTop = outputArea.scrollHeight;
                     },
                 });
-    
-                // ✅ Execute the Python code
-                await window.pyodide.runPythonAsync(pythonCodeWithInput);
-    
-                // ✅ Capture execution time after completion
+
+                // Execute the Python code
+                try {
+                    await window.pyodide.runPythonAsync(pythonCodeWithInput);
+                } catch (error) {
+                    console.error("Python Execution Error:", error);
+                    errorOutput.textContent = `Python Error: ${error.message}`;
+                }
+
+                // Capture execution time after completion
                 endTime = performance.now();
                 const executionTime = (endTime - startTime).toFixed(2);
                 outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
             }
-    
+
         } catch (error) {
-            outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
+            console.error("Execution Error:", error);
+            errorOutput.textContent = `${lang === "javascript" ? "JS" : "Python"} Error: ${error.message}`;
         } finally {
             hideLoadingScreen();
         }
     });
 
-    // ✅ Keyboard Shortcuts
-document.addEventListener("keydown", (e) => {
-    // Ctrl/Cmd + Enter to run code
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault(); // Prevent default behavior (e.g., form submission)
-      document.getElementById("run").click(); // Trigger run button
-      animateRunButton(); // Visual feedback (optional)
-    }
-  });
-
-  // ✅ Add this inside Monaco initialization block
-if (window.editor) {
-    // Disable Monaco's default Ctrl+Enter behavior
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-      document.getElementById("run").click();
-    });
-  }
-  
-  // ✅ Visual feedback for keyboard shortcut (optional)
-  function animateRunButton() {
-    const runBtn = document.getElementById("run");
-    runBtn.style.transform = "scale(0.95)";
-    setTimeout(() => {
-      runBtn.style.transform = "scale(1)";
-    }, 100);
-  }
     // ===============================
-    // ✅ Warn Before Reloading
+    // ✅ Clear Errors Function
     // ===============================
-    window.addEventListener("beforeunload", function (e) {
-        const code = window.editor.getValue();
-        if (code.trim() !== "") {
-            e.preventDefault();
-            e.returnValue = "Your code will be lost if you reload the page. Are you sure you want to leave?";
-            return "Your code will be lost if you reload the page. Are you sure you want to leave?";
+    function clearErrors() {
+        const errorOutput = document.getElementById("error-output");
+        if (errorOutput) {
+            errorOutput.textContent = ""; // Clear the error output
         }
+    }
+
+    // Attach clearErrors to the button
+    const clearErrorsButton = document.querySelector("#error-console button");
+    if (clearErrorsButton) {
+        clearErrorsButton.addEventListener("click", clearErrors);
+    }
+
+    // ===============================
+    // ✅ Settings Modal Logic
+    // ===============================
+    const settingsBtn = document.getElementById("settings");
+    const settingsModal = document.getElementById("settingsModal");
+    const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+    const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
+    const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+    const executionTimeoutInput = document.getElementById("executionTimeout");
+    const editorFontSizeInput = document.getElementById("editorFontSize");
+    const editorTabSizeInput = document.getElementById("editorTabSize");
+
+    // Load saved settings
+    executionTimeoutInput.value = localStorage.getItem("executionTimeout") || 20;
+    editorFontSizeInput.value = localStorage.getItem("editorFontSize") || 14;
+    editorTabSizeInput.value = localStorage.getItem("editorTabSize") || 4;
+
+    // Open settings modal
+    settingsBtn.addEventListener("click", () => {
+        settingsModal.style.display = "flex";
     });
-};
-// ✅ Settings Panel Toggle
-// ✅ Settings Modal Logic
-const settingsBtn = document.getElementById("settings");
-const settingsModal = document.getElementById("settingsModal");
-const closeSettingsBtn = document.getElementById("closeSettingsBtn");
-const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
-const saveSettingsBtn = document.getElementById("saveSettingsBtn");
-const executionTimeoutInput = document.getElementById("executionTimeout");
-const editorFontSizeInput = document.getElementById("editorFontSize");
-const editorTabSizeInput = document.getElementById("editorTabSize"); // New
 
-// Load saved timeout (default: 20 seconds)
-executionTimeoutInput.value = localStorage.getItem("executionTimeout") || 20;
-editorFontSizeInput.value = localStorage.getItem("editorFontSize") || 14;
-editorTabSizeInput.value = localStorage.getItem("editorTabSize") || 4; // New
-
-// Open settings modal
-settingsBtn.addEventListener("click", () => {
-  settingsModal.style.display = "flex";
-});
-
-// Close settings modal
-closeSettingsBtn.addEventListener("click", () => {
-  settingsModal.style.display = "none";
-});
-
-// Cancel button (close without saving)
-cancelSettingsBtn.addEventListener("click", () => {
-  settingsModal.style.display = "none";
-});
-
-// Save settings
-saveSettingsBtn.addEventListener("click", () => {
-  const value = Math.min(Math.max(parseInt(executionTimeoutInput.value || 20), 5), 60); // Clamp between 5-60s
-  const fontSize = Math.min(Math.max(parseInt(editorFontSizeInput.value || 14), 12), 24);
-  const tabSize = Math.min(Math.max(parseInt(editorTabSizeInput.value || 4), 2), 8); // New
-  localStorage.setItem("executionTimeout", value);
-  localStorage.setItem("editorFontSize", fontSize);
-  localStorage.setItem("editorTabSize", tabSize); // New
-  // ✅ Update Editor Settings
-  if (window.editor) {
-    editor.updateOptions({ 
-      fontSize: fontSize,
-      tabSize: tabSize // New
+    // Close settings modal
+    closeSettingsBtn.addEventListener("click", () => {
+        settingsModal.style.display = "none";
     });
-  }
 
-  // ✅ Initialize Tab Size on Page Load
-const savedTabSize = localStorage.getItem("editorTabSize") || 4;
-if (window.editor) {
-  editor.updateOptions({ tabSize: savedTabSize });
-}
-  settingsModal.style.display = "none";
+    // Cancel button (close without saving)
+    cancelSettingsBtn.addEventListener("click", () => {
+        settingsModal.style.display = "none";
+    });
+
+    // Save settings
+    saveSettingsBtn.addEventListener("click", () => {
+        const value = Math.min(Math.max(parseInt(executionTimeoutInput.value || 20), 5), 60); // Clamp between 5-60s
+        const fontSize = Math.min(Math.max(parseInt(editorFontSizeInput.value || 14), 12), 24);
+        const tabSize = Math.min(Math.max(parseInt(editorTabSizeInput.value || 4), 2), 8);
+        localStorage.setItem("executionTimeout", value);
+        localStorage.setItem("editorFontSize", fontSize);
+        localStorage.setItem("editorTabSize", tabSize);
+
+        // Update Editor Settings
+        if (window.editor) {
+            editor.updateOptions({
+                fontSize: fontSize,
+                tabSize: tabSize
+            });
+        }
+
+        settingsModal.style.display = "none";
+    });
+
+    // ===============================
+    // ✅ Visual Feedback for Keyboard Shortcut
+    // ===============================
+    function animateRunButton() {
+        const runBtn = document.getElementById("run");
+        runBtn.style.transform = "scale(0.95)";
+        setTimeout(() => {
+            runBtn.style.transform = "scale(1)";
+        }, 100);
+    }
 });
-
-// Close modal when clicking outside
-// window.addEventListener("click", (event) => {
-//   if (event.target === settingsModal) {
-//     settingsModal.style.display = "none";
-//   }
-// });
-// document.addEventListener("DOMContentLoaded", async function () {
-    
-// });
