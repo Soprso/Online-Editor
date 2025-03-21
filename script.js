@@ -224,6 +224,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     }
 
+    
     // ===============================
     // ✅ Apply Theme on Page Load
     // ===============================
@@ -317,12 +318,12 @@ document.getElementById("run").addEventListener("click", async function () {
     const outputArea = document.getElementById("output"); // Output area
     const inputArea = document.getElementById("input"); // Input area
 
-
     // Check if the code editor is empty
     if (!code.trim()) {
         outputArea.innerText = "Error: The code editor is empty. Please write some code.";
         return; // Stop execution
     }
+
     outputArea.innerText = "Running...";
     showLoadingScreen(); // Show loader when code is running
 
@@ -343,9 +344,11 @@ document.getElementById("run").addEventListener("click", async function () {
 
             // Pass input to JavaScript code
             const inputData = inputArea.value; // Get input from the input area
+
+            // Use a unique variable name for the input data
             const jsCodeWithInput = `
                 (function() {
-                    const input = \`${inputData}\`;
+                    const __inputData = \`${inputData}\`; // Unique variable name
                     ${code}
                 })();
             `;
@@ -371,7 +374,7 @@ document.getElementById("run").addEventListener("click", async function () {
             const inputData = inputArea.value; // Get input from the input area
             const pythonCodeWithInput = `
                 import sys
-                input_data = """${inputData}"""
+                __input_data = """${inputData}"""  # Unique variable name
                 ${code}
             `;
 
@@ -389,7 +392,7 @@ document.getElementById("run").addEventListener("click", async function () {
     } catch (error) {
         outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
     } finally {
-        hideLoadingScreen(); // Hide loader when code execution is complete
+        hideLoadingScreen(); // Ensure the loading screen is hidden
     }
 });
     // ===============================
