@@ -315,42 +315,59 @@ document.addEventListener("DOMContentLoaded", async function () {
         const code = editor.getValue();
         const lang = document.getElementById("language").value;
         const outputArea = document.getElementById("output");
-
+    
         outputArea.innerText = "Running...";
         showLoadingScreen(); // Show loader when code is running
-
+    
         try {
+            let startTime, endTime;
+    
             if (lang === "javascript") {
+                // Measure execution time for JavaScript
+                startTime = performance.now();
+    
                 let logOutput = [];
                 const oldConsoleLog = console.log;
-
+    
                 console.log = function (message) {
                     logOutput.push(message);
                     outputArea.innerText = logOutput.join("\n");
                 };
-
+    
                 let result = new Function(code)();
                 if (logOutput.length === 0 && result !== undefined) {
                     outputArea.innerText = result;
                 }
-
+    
                 console.log = oldConsoleLog;
+    
+                endTime = performance.now();
             } else if (lang === "python") {
                 if (!window.pyodide) {
                     outputArea.innerText = "Python is still loading... Please wait.";
                     await initializePyodide();
                 }
-
+    
+                // Measure execution time for Python
+                startTime = performance.now();
+    
                 outputArea.innerText = ""; // Clear output before running Python code
                 await window.pyodide.runPythonAsync(code);
+    
+                endTime = performance.now();
             }
+    
+            // Calculate execution time
+            const executionTime = (endTime - startTime).toFixed(2); // Time in milliseconds
+    
+            // Display execution time
+            outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
         } catch (error) {
             outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
         } finally {
             hideLoadingScreen(); // Hide loader when code execution is complete
         }
     });
-
     // ===============================
     // ✅ Warn Before Reloading
     // ===============================
