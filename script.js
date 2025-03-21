@@ -439,6 +439,33 @@ window.onload = function () {
             hideLoadingScreen();
         }
     });
+
+    // ✅ Keyboard Shortcuts
+document.addEventListener("keydown", (e) => {
+    // Ctrl/Cmd + Enter to run code
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault(); // Prevent default behavior (e.g., form submission)
+      document.getElementById("run").click(); // Trigger run button
+      animateRunButton(); // Visual feedback (optional)
+    }
+  });
+
+  // ✅ Add this inside Monaco initialization block
+if (window.editor) {
+    // Disable Monaco's default Ctrl+Enter behavior
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+      document.getElementById("run").click();
+    });
+  }
+  
+  // ✅ Visual feedback for keyboard shortcut (optional)
+  function animateRunButton() {
+    const runBtn = document.getElementById("run");
+    runBtn.style.transform = "scale(0.95)";
+    setTimeout(() => {
+      runBtn.style.transform = "scale(1)";
+    }, 100);
+  }
     // ===============================
     // ✅ Warn Before Reloading
     // ===============================
