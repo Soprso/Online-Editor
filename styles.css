@@ -537,6 +537,7 @@ body.light-theme .loading-screen p {
     width: 30px; /* Adjust size as needed */
     height: 30px; /* Adjust size as needed */
     object-fit: contain; /* Ensure the icon fits well */
+    transform: rotate(90deg); 
 }
 
 @media (max-width: 768px) {

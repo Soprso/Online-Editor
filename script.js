@@ -308,66 +308,90 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     });
 
-    // ===============================
-    // ✅ Run Code (JavaScript & Python)
-    // ===============================
-    document.getElementById("run").addEventListener("click", async function () {
-        const code = editor.getValue();
-        const lang = document.getElementById("language").value;
-        const outputArea = document.getElementById("output");
-    
-        outputArea.innerText = "Running...";
-        showLoadingScreen(); // Show loader when code is running
-    
-        try {
-            let startTime, endTime;
-    
-            if (lang === "javascript") {
-                // Measure execution time for JavaScript
-                startTime = performance.now();
-    
-                let logOutput = [];
-                const oldConsoleLog = console.log;
-    
-                console.log = function (message) {
-                    logOutput.push(message);
-                    outputArea.innerText = logOutput.join("\n");
-                };
-    
-                let result = new Function(code)();
-                if (logOutput.length === 0 && result !== undefined) {
-                    outputArea.innerText = result;
-                }
-    
-                console.log = oldConsoleLog;
-    
-                endTime = performance.now();
-            } else if (lang === "python") {
-                if (!window.pyodide) {
-                    outputArea.innerText = "Python is still loading... Please wait.";
-                    await initializePyodide();
-                }
-    
-                // Measure execution time for Python
-                startTime = performance.now();
-    
-                outputArea.innerText = ""; // Clear output before running Python code
-                await window.pyodide.runPythonAsync(code);
-    
-                endTime = performance.now();
+// ===============================
+// ✅ Run Code (JavaScript & Python)
+// ===============================
+document.getElementById("run").addEventListener("click", async function () {
+    const code = editor.getValue(); // Get the code from Monaco Editor
+    const lang = document.getElementById("language").value; // Get the selected language
+    const outputArea = document.getElementById("output"); // Output area
+    const inputArea = document.getElementById("input"); // Input area
+
+
+    // Check if the code editor is empty
+    if (!code.trim()) {
+        outputArea.innerText = "Error: The code editor is empty. Please write some code.";
+        return; // Stop execution
+    }
+    outputArea.innerText = "Running...";
+    showLoadingScreen(); // Show loader when code is running
+
+    try {
+        let startTime, endTime;
+
+        if (lang === "javascript") {
+            // Measure execution time for JavaScript
+            startTime = performance.now();
+
+            let logOutput = [];
+            const oldConsoleLog = console.log;
+
+            console.log = function (message) {
+                logOutput.push(message);
+                outputArea.innerText = logOutput.join("\n");
+            };
+
+            // Pass input to JavaScript code
+            const inputData = inputArea.value; // Get input from the input area
+            const jsCodeWithInput = `
+                (function() {
+                    const input = \`${inputData}\`;
+                    ${code}
+                })();
+            `;
+
+            let result = new Function(jsCodeWithInput)();
+            if (logOutput.length === 0 && result !== undefined) {
+                outputArea.innerText = result;
             }
-    
-            // Calculate execution time
-            const executionTime = (endTime - startTime).toFixed(2); // Time in milliseconds
-    
-            // Display execution time
-            outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
-        } catch (error) {
-            outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
-        } finally {
-            hideLoadingScreen(); // Hide loader when code execution is complete
+
+            console.log = oldConsoleLog;
+
+            endTime = performance.now();
+        } else if (lang === "python") {
+            if (!window.pyodide) {
+                outputArea.innerText = "Python is still loading... Please wait.";
+                await initializePyodide();
+            }
+
+            // Measure execution time for Python
+            startTime = performance.now();
+
+            // Pass input to Python code
+            const inputData = inputArea.value; // Get input from the input area
+            const pythonCodeWithInput = `
+                import sys
+                input_data = """${inputData}"""
+                ${code}
+            `;
+
+            outputArea.innerText = ""; // Clear output before running Python code
+            await window.pyodide.runPythonAsync(pythonCodeWithInput);
+
+            endTime = performance.now();
         }
-    });
+
+        // Calculate execution time
+        const executionTime = (endTime - startTime).toFixed(2); // Time in milliseconds
+
+        // Display execution time
+        outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
+    } catch (error) {
+        outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
+    } finally {
+        hideLoadingScreen(); // Hide loader when code execution is complete
+    }
+});
     // ===============================
     // ✅ Warn Before Reloading
     // ===============================
