@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async function () {
+window.onload = function () {
     console.log("🚀 Page Loaded");
 
     // Hide the loading screen after the page is fully loaded
@@ -309,92 +309,136 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     });
 
-// ===============================
-// ✅ Run Code (JavaScript & Python)
-// ===============================
-document.getElementById("run").addEventListener("click", async function () {
-    const code = editor.getValue(); // Get the code from Monaco Editor
-    const lang = document.getElementById("language").value; // Get the selected language
-    const outputArea = document.getElementById("output"); // Output area
-    const inputArea = document.getElementById("input"); // Input area
-
-    // Check if the code editor is empty
-    if (!code.trim()) {
-        outputArea.innerText = "Error: The code editor is empty. Please write some code.";
-        return; // Stop execution
-    }
-
-    outputArea.innerText = "Running...";
-    showLoadingScreen(); // Show loader when code is running
-
-    try {
-        let startTime, endTime;
-
-        if (lang === "javascript") {
-            // Measure execution time for JavaScript
-            startTime = performance.now();
-
-            let logOutput = [];
-            const oldConsoleLog = console.log;
-
-            console.log = function (message) {
-                logOutput.push(message);
-                outputArea.innerText = logOutput.join("\n");
-            };
-
-            // Pass input to JavaScript code
-            const inputData = inputArea.value; // Get input from the input area
-
-            // Use a unique variable name for the input data
-            const jsCodeWithInput = `
-                (function() {
-                    const __inputData = \`${inputData}\`; // Unique variable name
-                    ${code}
-                })();
-            `;
-
-            let result = new Function(jsCodeWithInput)();
-            if (logOutput.length === 0 && result !== undefined) {
-                outputArea.innerText = result;
-            }
-
-            console.log = oldConsoleLog;
-
-            endTime = performance.now();
-        } else if (lang === "python") {
-            if (!window.pyodide) {
-                outputArea.innerText = "Python is still loading... Please wait.";
-                await initializePyodide();
-            }
-
-            // Measure execution time for Python
-            startTime = performance.now();
-
-            // Pass input to Python code
-            const inputData = inputArea.value; // Get input from the input area
-            const pythonCodeWithInput = `
-                import sys
-                __input_data = """${inputData}"""  # Unique variable name
-                ${code}
-            `;
-
-            outputArea.innerText = ""; // Clear output before running Python code
-            await window.pyodide.runPythonAsync(pythonCodeWithInput);
-
-            endTime = performance.now();
+    // ======================================= RUN CODE =======================================
+    document.getElementById("run").addEventListener("click", async function () {
+        const code = editor.getValue();
+        const lang = document.getElementById("language").value;
+        const outputArea = document.getElementById("output");
+        const inputArea = document.getElementById("input");
+    
+        if (!code.trim()) {
+            outputArea.innerText = "Error: The code editor is empty. Please write some code.";
+            return;
         }
-
-        // Calculate execution time
-        const executionTime = (endTime - startTime).toFixed(2); // Time in milliseconds
-
-        // Display execution time
-        outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
-    } catch (error) {
-        outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
-    } finally {
-        hideLoadingScreen(); // Ensure the loading screen is hidden
-    }
-});
+    
+        outputArea.innerText = "Running..."+"\n\n";
+        showLoadingScreen();
+    
+        try {
+            let startTime, endTime;
+    
+            if (lang === "javascript") {
+                // ✅ Initialize execution timer
+                startTime = performance.now();
+    
+                // ✅ Override console.log to capture output
+                const originalConsoleLog = console.log;
+                console.log = function (...args) {
+                    const message = args.map(arg => 
+                        typeof arg === "object" ? JSON.stringify(arg) : arg
+                    ).join(" ");
+                    outputArea.innerText += message + "\n"; // Append to output
+                    originalConsoleLog.apply(console, args); // Preserve original behavior
+                };
+    
+                // ✅ Track pending async operations
+                let pendingAsync = 0;
+                const originalSetTimeout = window.setTimeout;
+                const originalFetch = window.fetch;
+    
+                // Override setTimeout to track pending timers
+                window.setTimeout = (callback, delay, ...args) => {
+                    pendingAsync++; // Increment counter
+                    const timerId = originalSetTimeout(() => {
+                        callback(...args);
+                        pendingAsync--; // Decrement when the timer completes
+                    }, delay, ...args);
+                    return timerId;
+                };
+    
+                // Override fetch to track pending requests
+                window.fetch = (...args) => {
+                    pendingAsync++; // Increment counter
+                    return originalFetch(...args).finally(() => {
+                        pendingAsync--; // Decrement when the request completes
+                    });
+                };
+    
+                // ✅ Execute the user's code
+                const inputData = inputArea.value;
+                const jsCodeWithInput = `
+                    (function() {
+                        const __inputData = \`${inputData}\`;
+                        ${code}
+                    })();
+                `;
+    
+                let result;
+                try {
+                    result = new Function(jsCodeWithInput)();
+                } catch (error) {
+                    console.error("JavaScript Execution Error:", error);
+                }
+    
+                // ✅ Wait for all pending async operations to complete
+                const MAX_WAIT_TIME = (localStorage.getItem("executionTimeout") || 20) * 1000; // Use saved timeout (default: 20s)
+                const startWaitTime = Date.now();
+                while (pendingAsync > 0 && Date.now() - startWaitTime < MAX_WAIT_TIME) {
+                    await new Promise(resolve => originalSetTimeout(resolve, 100));
+                }
+    
+                // ✅ Restore original APIs
+                window.setTimeout = originalSetTimeout;
+                window.fetch = originalFetch;
+                console.log = originalConsoleLog;
+    
+                endTime = performance.now();
+                const executionTime = (endTime - startTime).toFixed(2);
+                outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
+    
+            } else if (lang === "python") {
+                if (!window.pyodide) {
+                    outputArea.innerText = "Python is still loading... Please wait.";
+                    await initializePyodide();
+                }
+    
+                // ✅ Start execution timer
+                startTime = performance.now();
+    
+                // ✅ Pass input to Python code
+                const inputData = inputArea.value;
+                const pythonCodeWithInput = `
+                    import sys
+                    __input_data = """${inputData}"""  
+                    ${code}
+                `;
+    
+                // ✅ Clear output before running Python code
+                outputArea.innerText = "";
+    
+                // ✅ Redirect Python's stdout to the output area
+                window.pyodide.setStdout({
+                    batched: (text) => {
+                        outputArea.innerText += text + "\n";
+                        outputArea.scrollTop = outputArea.scrollHeight;
+                    },
+                });
+    
+                // ✅ Execute the Python code
+                await window.pyodide.runPythonAsync(pythonCodeWithInput);
+    
+                // ✅ Capture execution time after completion
+                endTime = performance.now();
+                const executionTime = (endTime - startTime).toFixed(2);
+                outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
+            }
+    
+        } catch (error) {
+            outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
+        } finally {
+            hideLoadingScreen();
+        }
+    });
     // ===============================
     // ✅ Warn Before Reloading
     // ===============================
@@ -406,4 +450,68 @@ document.getElementById("run").addEventListener("click", async function () {
             return "Your code will be lost if you reload the page. Are you sure you want to leave?";
         }
     });
+};
+// ✅ Settings Panel Toggle
+// ✅ Settings Modal Logic
+const settingsBtn = document.getElementById("settings");
+const settingsModal = document.getElementById("settingsModal");
+const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
+const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+const executionTimeoutInput = document.getElementById("executionTimeout");
+const editorFontSizeInput = document.getElementById("editorFontSize");
+const editorTabSizeInput = document.getElementById("editorTabSize"); // New
+
+// Load saved timeout (default: 20 seconds)
+executionTimeoutInput.value = localStorage.getItem("executionTimeout") || 20;
+editorFontSizeInput.value = localStorage.getItem("editorFontSize") || 14;
+editorTabSizeInput.value = localStorage.getItem("editorTabSize") || 4; // New
+
+// Open settings modal
+settingsBtn.addEventListener("click", () => {
+  settingsModal.style.display = "flex";
 });
+
+// Close settings modal
+closeSettingsBtn.addEventListener("click", () => {
+  settingsModal.style.display = "none";
+});
+
+// Cancel button (close without saving)
+cancelSettingsBtn.addEventListener("click", () => {
+  settingsModal.style.display = "none";
+});
+
+// Save settings
+saveSettingsBtn.addEventListener("click", () => {
+  const value = Math.min(Math.max(parseInt(executionTimeoutInput.value || 20), 5), 60); // Clamp between 5-60s
+  const fontSize = Math.min(Math.max(parseInt(editorFontSizeInput.value || 14), 12), 24);
+  const tabSize = Math.min(Math.max(parseInt(editorTabSizeInput.value || 4), 2), 8); // New
+  localStorage.setItem("executionTimeout", value);
+  localStorage.setItem("editorFontSize", fontSize);
+  localStorage.setItem("editorTabSize", tabSize); // New
+  // ✅ Update Editor Settings
+  if (window.editor) {
+    editor.updateOptions({ 
+      fontSize: fontSize,
+      tabSize: tabSize // New
+    });
+  }
+
+  // ✅ Initialize Tab Size on Page Load
+const savedTabSize = localStorage.getItem("editorTabSize") || 4;
+if (window.editor) {
+  editor.updateOptions({ tabSize: savedTabSize });
+}
+  settingsModal.style.display = "none";
+});
+
+// Close modal when clicking outside
+// window.addEventListener("click", (event) => {
+//   if (event.target === settingsModal) {
+//     settingsModal.style.display = "none";
+//   }
+// });
+// document.addEventListener("DOMContentLoaded", async function () {
+    
+// });

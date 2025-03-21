@@ -71,6 +71,9 @@
             <button id="download" title="Download Code">
                 <img src="images/download.png" alt="download-btn">
             </button>
+            <button id="settings" title="Settings">
+                <img src="images/gear.png" alt="settings-btn">
+            </button>
                         <!-- Add this near the top-bar or output area -->
             <div id="pythonStatus" style="color: green; margin-left: 10px;"></div>
             <div id="loadingSpinner" style="display: none; margin-left: 10px;">⏳ Loading Python...</div>
@@ -101,6 +104,37 @@
     </div>
     <p>Loading...</p>
 </div>
+<!-- settings panel -->
+<!-- Settings Modal -->
+<div id="settingsModal" class="settings-modal">
+    <div class="settings-content">
+      <div class="settings-header">
+        <img src="images/frog4.png" class="modal-frog-icon" alt="Frog Icon">
+        <h3>Settings</h3>
+        <button id="closeSettingsBtn" class="close-btn">×</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-item">
+          <label for="executionTimeout">Execution Timeout (seconds):</label>
+          <input type="number" id="executionTimeout" min="5" max="60" value="20">
+        </div>
+         <!-- Add Font Size Setting -->
+        <div class="setting-item">
+            <label for="editorFontSize">Editor Font Size (px):</label>
+            <input type="number" id="editorFontSize" min="12" max="24" value="14">
+        </div>
+        <!-- New: Tab Size -->
+        <div class="setting-item">
+            <label for="editorTabSize">Tab Size (spaces):</label>
+            <input type="number" id="editorTabSize" min="2" max="8" value="4">
+        </div>
+      </div>
+      <div class="settings-footer">
+        <button id="saveSettingsBtn" class="save-btn">Save</button>
+        <button id="cancelSettingsBtn" class="cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
     <!-- ✅ Load JavaScript -->
     <script src="script.js" defer></script>
 </body>

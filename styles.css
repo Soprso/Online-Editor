@@ -103,7 +103,8 @@
 
 #run,
 #clear,
-#download {
+#download,
+#settings {
     width: 20px;
     height: 20px;
     border-radius: 50%;
@@ -122,7 +123,8 @@
 #signOutBtn img,
 #run img,
 #clear img,
-#download img {
+#download img,
+#settings img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -545,3 +547,174 @@ body.light-theme .loading-screen p {
         margin-top: 50px; /* Adjust for smaller screens */
     }
 }
+
+/* Settings Modal */
+.settings-modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay */
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .settings-content {
+    background: var(--bg-color-dark);
+    border-radius: 2px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    max-width: 90%;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 2px yellowgreen;
+  }
+  
+  /* Light Theme for Settings Modal */
+  body.light-theme .settings-content {
+    background: var(--bg-color-light);
+    color: var(--text-color-light);
+  }
+  
+  /* Modal Header */
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: var(--output-bg-dark);
+    border-bottom: 1px solid var(--border-color-dark);
+  }
+  
+  body.light-theme .settings-header {
+    background: var(--output-bg-light);
+    border-bottom: 1px solid var(--border-color-light);
+  }
+  
+  .settings-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+  
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-color-dark);
+    transition: color 0.3s ease;
+  }
+  
+  body.light-theme .close-btn {
+    color: var(--text-color-light);
+  }
+  
+  .close-btn:hover {
+    color: yellowgreen; /* Red on hover */
+  }
+  
+  /* Modal Body */
+  .settings-body {
+    padding: 15px;
+  }
+  
+  .setting-item {
+    margin: 10px 0;
+  }
+  
+  .setting-item label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+  }
+  
+  .setting-item input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color-dark);
+    border-radius: 4px;
+    background: var(--input-bg-dark);
+    color: var(--text-color-dark);
+    font-size: 0.9rem;
+  }
+  
+  body.light-theme .setting-item input {
+    border: 1px solid var(--border-color-light);
+    background: var(--input-bg-light);
+    color: var(--text-color-light);
+  }
+  
+  /* Modal Footer */
+  .settings-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 15px;
+    background: var(--output-bg-dark);
+    border-top: 1px solid var(--border-color-dark);
+  }
+  
+  body.light-theme .settings-footer {
+    background: var(--output-bg-light);
+    border-top: 1px solid var(--border-color-light);
+  }
+  
+  .save-btn,
+  .cancel-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  
+  .save-btn {
+    background: yellowgreen;
+    color: var(--bg-color-dark);
+  }
+  
+  .save-btn:hover {
+    background: #218838;
+    transform: scale(1.05);
+  }
+  
+  .cancel-btn {
+    background: #dc3545;
+    color: white;
+  }
+  
+  .cancel-btn:hover {
+    background: #c82333;
+    transform: scale(1.05);
+  }
+
+  /* 🐸 Frog Icon in Modal Header */
+.modal-frog-icon {
+    width: 30px; /* Match navbar icon size */
+    height: 30px;
+    margin-right: 10px; /* Space between icon and text */
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)); /* Optional shadow */
+  }
+  
+  /* Light theme adjustment */
+  body.light-theme .modal-frog-icon {
+    filter: brightness(0.8); /* Slightly darker for visibility */
+  }
+  
+  /* Align title and icon */
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .modal-frog-icon {
+      width: 25px;
+      height: 25px;
+    }
+  }
