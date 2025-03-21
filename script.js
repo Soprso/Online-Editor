@@ -1,6 +1,9 @@
 document.addEventListener("DOMContentLoaded", async function () {
     console.log("🚀 Page Loaded");
 
+    // Hide the loading screen after the page is fully loaded
+    hideLoadingScreen();
+
     // ===============================
     // ✅ Firebase Authentication Setup
     // ===============================
@@ -165,39 +168,62 @@ document.addEventListener("DOMContentLoaded", async function () {
     // ✅ Resize Handle Logic
     // ===============================
     const editorContainer = document.querySelector(".editor-container");
-const ioContainer = document.querySelector(".io-container");
-const resizeHandle = document.querySelector(".resize-handle");
+    const ioContainer = document.querySelector(".io-container");
+    const resizeHandle = document.querySelector(".resize-handle");
 
-let isDragging = false;
+    let isDragging = false;
 
-// Start dragging
-resizeHandle.addEventListener("mousedown", function (e) {
-    isDragging = true;
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", stopDragging);
-});
+    // Start dragging
+    resizeHandle.addEventListener("mousedown", function (e) {
+        isDragging = true;
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", stopDragging);
+    });
 
-// Handle mouse movement during dragging
-function handleMouseMove(e) {
-    if (!isDragging) return;
+    // Handle mouse movement during dragging
+    function handleMouseMove(e) {
+        if (!isDragging) return;
 
-    // Calculate new width for io-container
-    const editorWidth = editorContainer.offsetWidth; // Fixed width of editor-container
-    const ioWidth = window.innerWidth - e.clientX - editorWidth; // Adjust for editor width
-    const minWidth = 200; // Minimum width for io-container
+        // Calculate new width for io-container
+        const editorWidth = editorContainer.offsetWidth; // Fixed width of editor-container
+        const ioWidth = window.innerWidth - e.clientX - editorWidth; // Adjust for editor width
+        const minWidth = 200; // Minimum width for io-container
 
-    // Apply new width if it's above the minimum
-    if (ioWidth >= minWidth) {
-        ioContainer.style.flex = `0 0 ${ioWidth}px`;
+        // Apply new width if it's above the minimum
+        if (ioWidth >= minWidth) {
+            ioContainer.style.flex = `0 0 ${ioWidth}px`;
+        }
     }
-}
 
-// Stop dragging
-function stopDragging() {
-    isDragging = false;
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", stopDragging);
-}
+    // Stop dragging
+    function stopDragging() {
+        isDragging = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", stopDragging);
+    }
+
+    // ✅ Show Loading Screen
+    function showLoadingScreen() {
+        const loadingScreen = document.getElementById("loadingScreen");
+        if (loadingScreen) {
+            console.log("🟢 Showing loading screen");
+            loadingScreen.style.display = "flex";
+            loadingScreen.style.opacity = "1";
+        }
+    }
+
+    // ✅ Hide Loading Screen
+    function hideLoadingScreen() {
+        const loadingScreen = document.getElementById("loadingScreen");
+        if (loadingScreen) {
+            console.log("🔴 Hiding loading screen");
+            loadingScreen.style.opacity = "0";
+            setTimeout(() => {
+                loadingScreen.style.display = "none";
+            }, 500); // Match the transition duration
+        }
+    }
+
     // ===============================
     // ✅ Apply Theme on Page Load
     // ===============================
@@ -235,6 +261,7 @@ function stopDragging() {
         if (window.pyodide) return window.pyodide;
 
         console.log("⏳ Loading Pyodide...");
+        showLoadingScreen(); // Show loader when Pyodide starts loading
 
         if (loadingSpinner) loadingSpinner.style.display = "inline-block";
         if (pythonStatus) pythonStatus.textContent = "";
@@ -261,17 +288,18 @@ function stopDragging() {
                 pythonStatus.textContent = "✅ Python loaded successfully!";
                 pythonStatus.style.color = "green";
             }
-            return window.pyodide;
         } catch (error) {
             console.error("❌ Pyodide Load Error:", error);
-
             if (pythonStatus) {
                 pythonStatus.textContent = "❌ Failed to load Python.";
                 pythonStatus.style.color = "red";
             }
         } finally {
+            hideLoadingScreen(); // Hide loader in all cases
             if (loadingSpinner) loadingSpinner.style.display = "none";
         }
+
+        return window.pyodide;
     }
 
     document.getElementById("language").addEventListener("change", async function () {
@@ -289,9 +317,10 @@ function stopDragging() {
         const outputArea = document.getElementById("output");
 
         outputArea.innerText = "Running...";
+        showLoadingScreen(); // Show loader when code is running
 
-        if (lang === "javascript") {
-            try {
+        try {
+            if (lang === "javascript") {
                 let logOutput = [];
                 const oldConsoleLog = console.log;
 
@@ -306,21 +335,19 @@ function stopDragging() {
                 }
 
                 console.log = oldConsoleLog;
-            } catch (error) {
-                outputArea.innerText = `JavaScript Error: ${error.message}`;
-            }
-        } else if (lang === "python") {
-            if (!window.pyodide) {
-                outputArea.innerText = "Python is still loading... Please wait.";
-                await initializePyodide();
-            }
+            } else if (lang === "python") {
+                if (!window.pyodide) {
+                    outputArea.innerText = "Python is still loading... Please wait.";
+                    await initializePyodide();
+                }
 
-            try {
                 outputArea.innerText = ""; // Clear output before running Python code
                 await window.pyodide.runPythonAsync(code);
-            } catch (error) {
-                outputArea.innerText = `Python Error: ${error.message}`;
             }
+        } catch (error) {
+            outputArea.innerText = `${lang === "javascript" ? "JavaScript" : "Python"} Error: ${error.message}`;
+        } finally {
+            hideLoadingScreen(); // Hide loader when code execution is complete
         }
     });
 
