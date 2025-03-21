@@ -318,7 +318,7 @@ body.light-theme #themeToggle:hover {
     flex: 0 0 70%;
     background: var(--editor-bg-dark);
     padding: 10px;
-    border-radius: 5px;
+    /* border-radius: 5px; */
     display: flex;
     flex-direction: column;
     transition: all 0.3s ease;
@@ -333,11 +333,11 @@ body.light-theme #themeToggle:hover {
 .io-container {
     flex: 0 0 30%;
     background: var(--output-bg-dark);
-    padding: 10px;
-    border-radius: 5px;
+    /* padding: 10px; */
+    /* border-radius: 5px; */
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 5px;
     min-width: 200px;
     overflow: hidden;
     box-shadow: 0 0 2px yellowgreen;
@@ -348,7 +348,7 @@ body.light-theme #themeToggle:hover {
     flex: 1;
     background: var(--input-bg-dark);
     padding: 10px;
-    border-radius: 5px;
+    /* border-radius: 5px; */
     color: white;
     border: none;
     outline: none;
@@ -368,7 +368,7 @@ body.light-theme #input {
     flex: 1;
     background: var(--output-bg-dark);
     padding: 10px;
-    border-radius: 5px;
+    /* border-radius: 5px; */
     color: white;
     font-size: 14px;
     min-height: 50%;
