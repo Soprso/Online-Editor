@@ -104,7 +104,8 @@
 #run,
 #clear,
 #download,
-#settings {
+#settings,
+#clear-error-output {
     width: 20px;
     height: 20px;
     border-radius: 50%;
@@ -124,7 +125,8 @@
 #run img,
 #clear img,
 #download img,
-#settings img {
+#settings img,
+#clear-error-output img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -554,15 +556,17 @@ body.light-theme .loading-screen p {
     z-index: 2000;
     justify-content: center;
     align-items: center;
+    
 }
 
 .settings-content {
     background: var(--bg-color-dark);
-    border-radius: 5px;
+    border-radius: 2px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    width: 300px;
+    width: 600px;
     max-width: 90%;
     overflow: hidden;
+    box-shadow: 0 0 2px yellowgreen;
 }
 
 /* Light Theme Adjustments */
@@ -599,6 +603,7 @@ body.light-theme .settings-header {
     color: var(--text-color-dark);
     transition: color 0.3s ease;
 }
+
 
 body.light-theme .close-btn {
     color: var(--text-color-light);
@@ -655,7 +660,8 @@ body.light-theme .settings-footer {
 }
 
 .save-btn,
-.cancel-btn {
+.cancel-btn,
+.clear-error-output {
     padding: 8px 15px;
     border: none;
     border-radius: 4px;
@@ -670,17 +676,17 @@ body.light-theme .settings-footer {
 }
 
 .save-btn:hover {
-    background: #218838;
+    
     transform: scale(1.05);
 }
 
-.cancel-btn {
+.cancel-btn{
     background: #dc3545;
     color: white;
 }
 
 .cancel-btn:hover {
-    background: #c82333;
+   
     transform: scale(1.05);
 }
   /* 🐸 Frog Icon in Modal Header */
