@@ -1,3 +1,5 @@
+// console.log("SQL Formatter Loaded:", typeof window.sqlFormatter !== "undefined" ? "Yes" : "No");
+
 document.addEventListener("DOMContentLoaded", function () {
     console.log("🚀 Page Loaded");
   
@@ -382,7 +384,7 @@ SELECT * FROM users;`;
             `);
     
             // Define max execution time (in milliseconds)
-            const MAX_WAIT_TIME = (localStorage.getItem("executionTimeout") || 60) * 1000; // Default: 20s
+            const MAX_WAIT_TIME = (localStorage.getItem("executionTimeout") || 30) * 1000; // Default: 20s
     
             return new Promise((resolve, reject) => {
                 let executionCompleted = false;
@@ -719,47 +721,75 @@ SELECT * FROM users;`;
       console.log("✅ Prettier Plugins Loaded:", prettierPlugins);
   
       // ✅ Format Code Function
-      function formatCode() {
+    async  function formatCode() {
         const code = editor.getValue();
         const language = document.getElementById("language").value;
-  
+    
         try {
-          let formattedCode;
-          const options = {
-            tabWidth: parseInt(localStorage.getItem("editorTabSize") || 4),
-            useTabs: false,
-          };
-  
-          if (language === "javascript" && prettierPlugins.babel) {
-            formattedCode = prettier.format(code, {
-              ...options,
-              parser: "babel",
-              plugins: [prettierPlugins.babel],
-              semi: true,
-              singleQuote: false,
-              trailingComma: "es5",
-            });
-          } else if (language === "python" && prettierPlugins.python) {
-            formattedCode = prettier.format(code, {
-              ...options,
-              parser: "python",
-              plugins: [prettierPlugins.python],
-            });
-          } else {
-            console.error(
-              "❌ Unsupported language or missing Prettier plugin:",
-              language
-            );
-            return;
-          }
-  
-          editor.setValue(formattedCode);
-          console.log("✅ Code formatted successfully!");
+            let formattedCode;
+            const options = {
+                tabWidth: parseInt(localStorage.getItem("editorTabSize") || 4),
+                useTabs: false,
+            };
+    
+            if (language === "javascript" && prettierPlugins.babel) {
+                formattedCode = prettier.format(code, {
+                    ...options,
+                    parser: "babel",
+                    plugins: [prettierPlugins.babel],
+                    semi: true,
+                    singleQuote: false,
+                    trailingComma: "es5",
+                });
+            } else if (language === "python" && prettierPlugins.python) {
+                formattedCode = prettier.format(code, {
+                    ...options,
+                    parser: "python",
+                    plugins: [prettierPlugins.python],
+                });
+            } else if (language === "sql") {
+                formattedCode = await formatSQLUsingAPI(code); // ✅ Call API function
+            } else {
+                console.error("❌ Unsupported language or missing formatter:", language);
+                return;
+            }
+    
+            editor.setValue(formattedCode);
+            console.log("✅ Code formatted successfully!");
         } catch (error) {
-          console.error("❌ Error formatting code:", error);
+            console.error("❌ Error formatting code:", error);
         }
-      }
-  
+    }
+    
+    // format sql using api======================================================
+    // ✅ Function to Format SQL using API
+async function formatSQLUsingAPI(sqlCode) {
+    try {
+        const response = await fetch("https://sqlformat.org/api/v1/format", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                sql: sqlCode,
+                reindent: 1,   // Enable indentation
+                indent_width: 4, // Use 4 spaces for indentation
+                keyword_case: "upper", // Convert SQL keywords to uppercase
+                strip_comments: 0, // Keep comments in formatted SQL
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        // console.log("✅ SQL Formatting API Response:", data.result);
+        return data.result;
+    } catch (error) {
+        console.error("❌ Failed to format SQL:", error);
+        return sqlCode; // Return original SQL if formatting fails
+    }
+}
+
       // ✅ Attach Format Button Event Listener
       const formatButton = document.getElementById("format");
       if (formatButton) {
