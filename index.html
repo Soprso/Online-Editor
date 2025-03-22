@@ -1,39 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bangu..</title>
-    <link rel="icon" type="image/png" href="images/frog4.png">
-     
-    <!-- ✅ Load Firebase SDK First -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bangu Code Editor</title>
+        <link rel="icon" type="image/png" href="images/frog4.png">
+    
+        <!-- ✅ Load Firebase SDK First -->
+        <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    
+        <!-- ✅ Prevent AMD Conflicts Before Pyodide Loads -->
+        <script>
+            var define = null; // Temporarily disable AMD
+        </script>
+    
+        <!-- ✅ Load Pyodide -->
+        <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    
+        <!-- ✅ Restore AMD After Pyodide -->
+        <script>
+            delete window.define;
+        </script>
 
-    <!-- ✅ Prevent AMD Conflicts for Pyodide -->
-    <script>
-        var define = null; // Temporarily disable AMD to prevent conflicts
-    </script>
+            <!-- ✅ Load SQL.js (SQLite for the Browser) -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    
+                <!-- ✅ Load Prettier Core -->
+        <script src="https://cdn.jsdelivr.net/npm/prettier@2.8.4/standalone.js"></script>
 
-    <!-- ✅ Load Pyodide First -->
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+        <!-- ✅ Load JavaScript Formatter (Babel) -->
+        <script src="https://cdn.jsdelivr.net/npm/prettier@2.8.4/parser-babel.js"></script>
 
-    <!-- ✅ Restore AMD after Pyodide loads -->
-    <script>
-        delete window.define;
-    </script>
-
-    <!-- ✅ Load Monaco Editor (Ensure AMD Works) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.js"></script>
-    <script>
-        require.config({
-            paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' }
-        });
-    </script>
-
-    <!-- ✅ Load Stylesheet -->
-    <link rel="stylesheet" href="styles.css">
-</head>
+        <!-- ✅ Load Python Formatter Plugin -->
+        <script src="https://cdn.jsdelivr.net/npm/prettier-plugin-python@0.0.0-development/dist/index.js"></script>
+            
+        <!-- ✅ Load Monaco Editor (Ensure AMD Works) -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.js"></script>
+        <script>
+            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' } });
+        </script>
+    
+        <!-- ✅ Load Styles -->
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    
 <body>
 
     <!-- ✅ Navigation Bar -->
@@ -58,17 +69,17 @@
     <div class="container">
         <!-- Top Bar with Controls -->
         <div class="top-bar">
-            <label for="language">Language:</label>
+            <!-- <label for="language">Language:</label> -->
             <select id="language">
                 <option value="javascript">JavaScript</option>
                 <option value="python">Python</option>
-                <option value="c">C</option>
+                <option value="sql">SQL</option>
                 <option value="java">Java</option>
             </select>
             <button id="run" title="Run Code (Ctrl+Enter)">
                 <img src="images/run.png" alt="run-btn">
             </button>
-            <button id="clear" title="Clear Output">
+            <button id="clear" title="Clear Code">
                 <img src="images/clear.png" alt="clear-btn">
             </button>
             <button id="download" title="Download Code">
@@ -76,6 +87,10 @@
             </button>
             <button id="settings" title="Settings">
                 <img src="images/gear.png" alt="settings-btn">
+            </button>
+            <!-- Add this button near the other buttons in the top bar -->
+            <button id="format" title="Format Code">
+                <img src="images/formatter.png" alt="format-btn">
             </button>
             <!-- Python Status and Loading Spinner -->
             <div id="pythonStatus" style="color: green; margin-left: 10px;"></div>
@@ -96,7 +111,6 @@
             <div class="io-container">
                 <!-- Input (30%) -->
                 <textarea id="input" placeholder="Input..."></textarea>
-                
                 <!-- Output (50%) -->
                 <pre id="output"></pre>
               

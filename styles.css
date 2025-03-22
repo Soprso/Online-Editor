@@ -105,7 +105,8 @@
 #clear,
 #download,
 #settings,
-#clear-error-output {
+#clear-error-output,
+#format {
     width: 20px;
     height: 20px;
     border-radius: 50%;
@@ -126,11 +127,17 @@
 #clear img,
 #download img,
 #settings img,
-#clear-error-output img {
+#clear-error-output img,
+#format img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     border-radius: 50%;
+}
+
+#format:hover {
+    transform: scale(1.15);
+    transition: transform 0.2s ease-in-out;
 }
 
 /* Reset default styles */
@@ -205,8 +212,9 @@ body.light-theme .navbar {
     width: 100%;
     display: flex;
     flex-direction: column;
-    margin-left: 20px;
-    margin-right: 20px;
+    /* margin-left: 20px;
+    margin-right: 20px; */
+    /* margin-right: 10px; */
     margin-top: 60px;
     box-shadow: 0 0 2px yellowgreen;
 }
@@ -317,6 +325,8 @@ body.light-theme #themeToggle:hover {
     height: 70vh;
 }
 
+
+
 /* Editor Container */
 .editor-container {
     flex: 0 0 70%;
@@ -343,10 +353,11 @@ body.light-theme #themeToggle:hover {
     overflow: hidden;
     box-shadow: 0 0 2px yellowgreen;
     height: 70vh; /* Fixed height for percentage-based sizing */
+    padding-right: 10px;
 }
 /* Input Section */
 #input {
-    flex: 0 0 30%; /* Takes 30% of the io-container */
+    flex: 0 0 20%; /* Takes 30% of the io-container */
     background: var(--input-bg-dark);
     padding: 10px;
     color: white;
@@ -366,7 +377,7 @@ body.light-theme #input {
 /* Output Box */
 /* Output Section */
 #output {
-    flex: 0 0 50%; /* Takes 50% of the io-container */
+    flex: 0 0 40%; /* Takes 50% of the io-container */
     background: var(--output-bg-dark);
     padding: 10px;
     color: white;
@@ -718,7 +729,7 @@ body.light-theme .settings-footer {
 
  /* Error Console Section */
 #error-console {
-    flex: 0 0 20%; /* Takes 20% of the io-container */
+    flex: 0 0 30%; /* Takes 20% of the io-container */
     background: var(--output-bg-dark);
     border-top: 2px solid #dc3545;
     overflow-y: auto;
@@ -737,13 +748,15 @@ body.light-theme .settings-footer {
     color: #ff6b6b;
     white-space: pre-wrap;
     font-family: monospace;
+    
 }
 /* Error Console Section */
 #error-console {
-    flex: 0 0 20%; /* Takes 20% of the io-container */
+    flex: 0 0 40%; /* Takes 20% of the io-container */
     background: var(--output-bg-dark);
     border-top: 2px solid #dc3545;
     overflow-y: auto;
+    box-shadow: 0 0 2px yellowgreen;
 }
 
 .console-header {
@@ -780,4 +793,4 @@ body.light-theme #error-output {
 body.light-theme #input {
     background: var(--input-bg-light);
     color: black;
-}
+} 
