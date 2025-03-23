@@ -458,7 +458,72 @@ body.light-theme .resize-handle {
 }
 
 
-/* 🐸 Frog Loading Animation */
+/* 🐸 Loading Screen with Progress Bar */
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent dark background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 2000;
+    transition: opacity 0.5s ease;
+}
+
+/* Frog Icon */
+.loading-screen .frog-icon {
+    width: 60px; /* Adjust size as needed */
+    height: 60px; /* Adjust size as needed */
+    margin-bottom: 20px; /* Space between frog and progress bar */
+}
+
+/* Progress Bar Container */
+.progress-bar-container {
+    width: 200px; /* Adjust width as needed */
+    height: 10px; /* Adjust height as needed */
+    background-color: #444; /* Background color of the progress bar container */
+    border-radius: 5px; /* Rounded corners */
+    overflow: hidden; /* Ensures the inner progress bar stays within the container */
+}
+
+/* Progress Bar */
+.progress-bar {
+    width: 0; /* Start with 0 width */
+    height: 100%;
+    background-color: yellowgreen; /* Progress bar color */
+    border-radius: 5px; /* Rounded corners */
+    transition: width 0.3s ease; /* Smooth transition for progress */
+}
+
+/* Loading Text */
+.loading-screen p {
+    color: var(--text-color-dark);
+    font-size: 1.2rem;
+    margin-top: 20px; /* Space between progress bar and text */
+}
+
+/* Light Theme Adjustments for Loader */
+body.light-theme .loading-screen {
+    background-color: rgba(255, 255, 255, 0.5); /* Semi-transparent white background */
+}
+
+body.light-theme .loading-screen p {
+    color: var(--text-color-light);
+}
+
+body.light-theme .progress-bar-container {
+    background-color: #ddd; /* Light theme progress bar container */
+}
+
+body.light-theme .progress-bar {
+    background-color: #4caf50; /* Light theme progress bar color */
+}
+
+/* /* 🐸 Frog Loading Animation */
 .loading-screen {
     position: fixed;
     top: 0;
@@ -508,7 +573,7 @@ body.light-theme .resize-handle {
 
 @keyframes hop {
     0%, 100% {
-        opacity: 0;
+        opacity: 1;
         transform: translateY(0);
     }
     50% {
@@ -524,7 +589,7 @@ body.light-theme .loading-screen {
 
 body.light-theme .loading-screen p {
     color: var(--text-color-light);
-}
+} */
 
 /* 🐸 Navbar Heading with Frog Icon */
 .navbar-heading {

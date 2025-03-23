@@ -250,25 +250,66 @@ SELECT * FROM users;`;
     // ===============================
     // ✅ Loading Screen Functions
     // ===============================
-    function showLoadingScreen() {
-      const loadingScreen = document.getElementById("loadingScreen");
-      if (loadingScreen) {
+    // function showLoadingScreen() {
+    //   const loadingScreen = document.getElementById("loadingScreen");
+    //   if (loadingScreen) {
+    //     console.log("🟢 Showing loading screen");
+    //     loadingScreen.style.display = "flex";
+    //     loadingScreen.style.opacity = "1";
+    //   }
+    // }
+  
+    // function hideLoadingScreen() {
+    //   const loadingScreen = document.getElementById("loadingScreen");
+    //   if (loadingScreen) {
+    //     console.log("🔴 Hiding loading screen");
+    //     loadingScreen.style.opacity = "0";
+    //     setTimeout(() => {
+    //       loadingScreen.style.display = "none";
+    //     }, 500); // Match the transition duration
+    //   }
+    // }
+
+    // ===============================
+// ✅ Loading Screen Functions
+// ===============================
+function showLoadingScreen() {
+    const loadingScreen = document.getElementById("loadingScreen");
+    const progressBar = document.getElementById("progressBar");
+
+    if (loadingScreen && progressBar) {
         console.log("🟢 Showing loading screen");
+
+        // Reset progress bar width
+        progressBar.style.width = "0";
+
+        // Show loading screen
         loadingScreen.style.display = "flex";
         loadingScreen.style.opacity = "1";
-      }
+
+        // Simulate progress (for demonstration purposes)
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 10; // Increment progress
+            progressBar.style.width = `${progress}%`;
+
+            if (progress >= 100) {
+                clearInterval(interval); // Stop the interval when progress reaches 100%
+            }
+        }, 300); // Adjust the interval speed as needed
     }
-  
-    function hideLoadingScreen() {
-      const loadingScreen = document.getElementById("loadingScreen");
-      if (loadingScreen) {
+}
+
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById("loadingScreen");
+    if (loadingScreen) {
         console.log("🔴 Hiding loading screen");
         loadingScreen.style.opacity = "0";
         setTimeout(() => {
-          loadingScreen.style.display = "none";
+            loadingScreen.style.display = "none";
         }, 500); // Match the transition duration
-      }
     }
+}
   
     // ===============================
     // ✅ Theme Logic
@@ -462,159 +503,160 @@ SELECT * FROM users;`;
       return tableHTML;
     }
   
-    // ===============================
-    // ✅ Run Code Logic (Supports JavaScript, Python, and SQL)
-    // ===============================
-    document.getElementById("run").addEventListener("click", async function () {
-      const code = editor.getValue();
-      const lang = document.getElementById("language").value;
-      const outputArea = document.getElementById("output");
-      const errorOutput = document.getElementById("error-output");
-      const inputArea = document.getElementById("input");
-  
-      if (!code.trim()) {
-        errorOutput.innerText =
-          "Error: The code editor is empty. Please write some code.";
+// ===============================
+// ✅ Run Code Logic (Supports JavaScript, Python, and SQL)
+// ===============================
+
+document.getElementById("run").addEventListener("click", async function () {
+    const code = editor.getValue();
+    const lang = document.getElementById("language").value;
+    const outputArea = document.getElementById("output");
+    const errorOutput = document.getElementById("error-output");
+    const inputArea = document.getElementById("input");
+
+    if (!code.trim()) {
+        errorOutput.innerText = "Error: The code editor is empty. Please write some code.";
         return;
-      }
-  
-      // Clear previous output and errors
-      outputArea.innerText = "Running...\n\n";
-      errorOutput.textContent = ""; // Clear error output
-      showLoadingScreen();
-  
-      try {
-        let startTime, endTime;
-  
+    }
+
+    // ✅ Clear previous output and errors
+    outputArea.innerText = "";
+    errorOutput.textContent = "";
+    showLoadingScreen();
+
+    try {
+        let startTime = performance.now();
+        let executionTimedOut = false;
+
+        // ✅ Define Execution Timeout
+        const MAX_WAIT_TIME = (localStorage.getItem("executionTimeout") || 20) * 1000; // Default: 20s
+
+        // ✅ General Timeout Handling (Stops Infinite Loops)
+        const executionTimeout = new Promise((_, reject) => {
+            setTimeout(() => {
+                executionTimedOut = true;
+                reject(new Error(`⏳ Execution Timeout! Code exceeded ${MAX_WAIT_TIME / 1000}s.`));
+            }, MAX_WAIT_TIME);
+        });
+
+        // ✅ Select Language & Execute Accordingly
+        let executionPromise;
         if (lang === "javascript") {
-          // JavaScript Execution
-          startTime = performance.now();
-  
-          // Override console.log to capture output
-          const originalConsoleLog = console.log;
-          console.log = function (...args) {
-            const message = args
-              .map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg))
-              .join(" ");
-            outputArea.innerText += message + "\n"; // Append to output
-            originalConsoleLog.apply(console, args); // Preserve original behavior
-          };
-  
-          // Track pending async operations
-          let pendingAsync = 0;
-          const originalSetTimeout = window.setTimeout;
-          const originalFetch = window.fetch;
-  
-          // Override setTimeout to track pending timers
-          window.setTimeout = (callback, delay, ...args) => {
-            pendingAsync++;
-            const timerId = originalSetTimeout(
-              () => {
-                callback(...args);
-                pendingAsync--;
-              },
-              delay,
-              ...args
-            );
-            return timerId;
-          };
-  
-          // Override fetch to track pending requests
-          window.fetch = (...args) => {
-            pendingAsync++;
-            return originalFetch(...args).finally(() => {
-              pendingAsync--;
-            });
-          };
-  
-          // Execute JavaScript code
-          const inputData = inputArea.value;
-          const jsCodeWithInput = `
-                  (function() {
-                      const __inputData = \`${inputData}\`;
-                      ${code}
-                  })();
-              `;
-  
-          try {
-            new Function(jsCodeWithInput)();
-          } catch (error) {
-            console.error("JavaScript Execution Error:", error);
-            errorOutput.textContent = `JavaScript Error: ${error.message}`;
-          }
-  
-          // Wait for pending async operations
-          const MAX_WAIT_TIME =
-            (localStorage.getItem("executionTimeout") || 20) * 1000; // Default: 20s
-          const startWaitTime = Date.now();
-          while (pendingAsync > 0 && Date.now() - startWaitTime < MAX_WAIT_TIME) {
-            await new Promise((resolve) => originalSetTimeout(resolve, 100));
-          }
-  
-          // Restore original functions
-          window.setTimeout = originalSetTimeout;
-          window.fetch = originalFetch;
-          console.log = originalConsoleLog;
-  
-          endTime = performance.now();
-          const executionTime = (endTime - startTime).toFixed(2);
-          outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
+            executionPromise = runJavaScriptWithWorker(code, outputArea, errorOutput, MAX_WAIT_TIME);
         } else if (lang === "python") {
-          // Python Execution
-          if (!window.pyodide) {
-            outputArea.innerText = "Python is still loading... Please wait.";
-            await initializePyodide();
-          }
-  
-          startTime = performance.now();
-  
-          // Prepare input for Python
-          const inputData = inputArea.value;
-          const pythonCodeWithInput = `
-  import sys
-  __input_data = """${inputData}"""
-  ${code}
-              `.trim();
-  
-          console.log("Python Code to Execute:", pythonCodeWithInput);
-          outputArea.innerText = "";
-  
-          // Redirect Python stdout to output area
-          window.pyodide.setStdout({
-            batched: (text) => {
-              outputArea.innerText += text + "\n";
-              outputArea.scrollTop = outputArea.scrollHeight;
-            },
-          });
-  
-          try {
-            await window.pyodide.runPythonAsync(pythonCodeWithInput);
-          } catch (error) {
-            console.error("Python Execution Error:", error);
-            errorOutput.textContent = `Python Error: ${error.message}`;
-          }
-  
-          endTime = performance.now();
-          const executionTime = (endTime - startTime).toFixed(2);
-          outputArea.innerText += `\n\nExecution Time: ${executionTime} ms`;
+            executionPromise = runPython(code, outputArea, errorOutput, inputArea);
         } else if (lang === "sql") {
-          // SQL Execution
-          startTime = performance.now();
-          await runSQL(code, outputArea); // Execute SQL
-          endTime = performance.now();
-  
-          const executionTime = (endTime - startTime).toFixed(2);
-          outputArea.innerHTML += `<br><br><strong>Execution Time: ${executionTime} ms</strong>`;
+            executionPromise = runSQL(code, outputArea);
         }
-      } catch (error) {
+
+        // ✅ Run Code & Ensure Timeout Works
+        await Promise.race([executionPromise, executionTimeout]);
+
+        // ✅ Capture Execution Time After Task Completion
+        if (!executionTimedOut) {
+            let endTime = performance.now();
+            outputArea.innerText += `\n\nExecution Time: ${(endTime - startTime).toFixed(2)} ms`;
+        }
+
+    } catch (error) {
         console.error("Execution Error:", error);
-        errorOutput.textContent = `${
-          lang === "javascript" ? "JS" : lang === "python" ? "Python" : "SQL"
-        } Error: ${error.message}`;
-      } finally {
+        errorOutput.textContent = error.message;
+    } finally {
         hideLoadingScreen();
-      }
+    }
+});
+
+// ✅ JavaScript Execution using Web Worker
+async function runJavaScriptWithWorker(code, outputArea, errorOutput, timeout) {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker("worker.js");
+        const startTime = performance.now(); // Start measuring execution time
+
+        // Handle Messages from Worker
+        worker.onmessage = function (e) {
+            const endTime = performance.now(); // End execution time measurement
+
+            if (e.data.error) {
+                errorOutput.textContent = e.data.error; // Print errors in error-console
+                reject(new Error(e.data.error));
+            } else {
+                const executionTime = (endTime - startTime).toFixed(2); // Compute execution time
+                outputArea.innerText += e.data.output;
+                resolve();
+            }
+        };
+
+        // Handle Worker Errors
+        worker.onerror = function (e) {
+            errorOutput.textContent = `❌ JavaScript Error: ${e.message}`; // Print to error-console
+            reject(new Error(e.message));
+        };
+
+        // Send Code to Worker for Execution
+        worker.postMessage({ code: code, timeout: timeout });
     });
+}
+
+
+// ✅ Python Execution with Timeout
+async function runPython(code, outputArea, errorOutput, inputArea, timeout) {
+    if (!window.pyodide) {
+        outputArea.innerText = "Python is still loading... Please wait.";
+        await initializePyodide();
+    }
+
+    return new Promise((resolve, reject) => {
+        const executionTimeout = setTimeout(() => {
+            reject(new Error("⏳ Python Execution Timeout!"));
+        }, timeout);
+
+        const inputData = inputArea.value;
+        const pythonCodeWithInput = `
+            import sys
+            __input_data = """${inputData}"""
+            ${code}
+        `.trim();
+
+        outputArea.innerText = "";
+
+        window.pyodide.setStdout({
+            batched: (text) => {
+                outputArea.innerText += text + "\n";
+                outputArea.scrollTop = outputArea.scrollHeight;
+            },
+        });
+
+        window.pyodide.runPythonAsync(pythonCodeWithInput)
+            .then(() => {
+                clearTimeout(executionTimeout);
+                resolve();
+            })
+            .catch(error => {
+                errorOutput.textContent = `Python Error: ${error.message}`;
+                reject(error);
+            });
+    });
+}
+
+// ✅ SQL Execution with Timeout
+async function runSQLWithTimeout(code, outputArea, timeout) {
+    return new Promise(async (resolve, reject) => {
+        const executionTimeout = setTimeout(() => {
+            reject(new Error("⏳ SQL Execution Timeout!"));
+        }, timeout);
+
+        try {
+            let startTime = performance.now();
+            await runSQL(code, outputArea);
+            let endTime = performance.now();
+            outputArea.innerHTML += `<br><br><strong>Execution Time: ${(endTime - startTime).toFixed(2)} ms</strong>`;
+            clearTimeout(executionTimeout);
+            resolve();
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
   
     // ===============================
     // ✅ Clear Errors Function
