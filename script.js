@@ -651,7 +651,7 @@ async function runPython(code, outputArea, errorOutput, inputArea) {
           errorOutput.innerText = `❌ Execution Timeout: Code exceeded ${userTimeout} seconds!`;
       }, MAX_WAIT_TIME);
 
-      const response = await fetch("http://localhost:8000/run-python", {
+      const response = await fetch("https://bangu-python.onrender.com/run-python", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code, input_data: inputData, timeout: userTimeout }),
