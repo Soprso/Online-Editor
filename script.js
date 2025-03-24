@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ✅ Language Change Event
     const languageDropdown = document.getElementById("language");
-
+    const formatButton = document.getElementById("format"); // Format button
     if (languageDropdown) {
         // ✅ Restore the selected language from localStorage
         const savedLanguage = localStorage.getItem("selectedLanguage") || "javascript";
@@ -125,11 +125,15 @@ document.addEventListener("DOMContentLoaded", function () {
         // ✅ Load default code immediately on page load
         updateEditorLanguage(savedLanguage);
     
+            // ✅ Check language on page load & hide format button for Python
+        formatButton.style.display = savedLanguage === "python" ? "none" : "inline-block";
         // ✅ Event Listener: Update editor when a new language is selected
         languageDropdown.addEventListener("change", function () {
             const selectedLanguage = this.value;
             localStorage.setItem("selectedLanguage", selectedLanguage);
             updateEditorLanguage(selectedLanguage);
+            // ✅ Hide format button if Python is selected
+        formatButton.style.display = selectedLanguage === "python" ? "none" : "inline-block";
         });
     }
     
