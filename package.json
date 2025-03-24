@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "isolated-vm": "^5.0.4",
     "stackframe": "^1.3.4"
   }
 }
