@@ -358,39 +358,31 @@ return 0;
     applyTheme(isLightMode);
   });
 
- // ===============================
-// ✅ Function to Run C/C++ Code
-// ===============================
 // ===============================
 // ✅ Function to Run C/C++ Code (Render-hosted version)
 // ===============================
-async function runC_CPP(code, language, outputArea, errorOutput) {
-  const API_URL = "https://bangu-python.onrender.com/run-code"; // Ensure this matches your Render URL
-  
+async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
+  const API_URL = "https://bangu-python.onrender.com/run-code";
+
   try {
-      // Clear previous outputs
-      if (outputArea) outputArea.textContent = '';
-      if (errorOutput) errorOutput.textContent = '';
+      outputArea.textContent = "";
+      errorOutput.textContent = "";
 
-      // Validate inputs
-      if (!code?.trim()) throw new Error("Code cannot be empty");
-      if (!['c', 'cpp'].includes(language)) throw new Error('Language must be "c" or "cpp"');
+      console.log("[Debug] Sending to backend:", { code, language, inputData });
 
-      console.log("[Debug] Sending to backend:", { code, language });
-      
       const response = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-              code: code, 
-              language: language, 
-              timeout: 10,  // Increased timeout
-              input_data: "" 
+          body: JSON.stringify({
+              code: code,
+              language: language,
+              input_data: inputData, // ✅ Pass user input
+              timeout: 10  
           }),
       });
 
       console.log("[Debug] Response status:", response.status);
-      
+
       if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Server error: ${response.status}\n${errorText}`);
@@ -398,26 +390,18 @@ async function runC_CPP(code, language, outputArea, errorOutput) {
 
       const data = await response.json();
       console.log("[Debug] Response data:", data);
-      
-      // Update UI
-      if (outputArea && data.output) outputArea.textContent = data.output;
-      if (errorOutput && data.error) errorOutput.textContent = data.error;
-      
+
+      outputArea.textContent = data.output || "";
+      errorOutput.textContent = data.error || "";
+
       return data;
   } catch (error) {
       console.error("[Debug] Full error:", error);
-      const errorMsg = error.message.includes("Failed to fetch")
-          ? "Backend connection failed. Check:\n1. Is Render backend running?\n2. Are CORS settings correct?"
-          : error.message;
-      
-      if (errorOutput) {
-          errorOutput.textContent = errorMsg;
-          errorOutput.style.color = "red";
-      }
-      
-      return { error: errorMsg };
+      errorOutput.textContent = `❌ Execution Error: ${error.message}`;
+      return { error: error.message };
   }
 }
+
   // ===============================
   // ✅ SQL Execution Function
   // ===============================
@@ -536,6 +520,8 @@ async function runC_CPP(code, language, outputArea, errorOutput) {
     const errorOutput = document.getElementById("error-output");
     const inputArea = document.getElementById("input");
 
+    const inputData = inputArea.value.trim(); // ✅ Get user input
+
     if (!code.trim()) {
         errorOutput.innerText = "❌ Error: The code editor is empty. Please write some code.";
         return;
@@ -569,16 +555,11 @@ async function runC_CPP(code, language, outputArea, errorOutput) {
         if (lang === "javascript") {
             executionPromise = runJavaScriptWithWorker(code, outputArea, errorOutput, MAX_WAIT_TIME);
         } else if (lang === "python") {
-            executionPromise = runPython(code, outputArea, errorOutput, inputArea, signal);
+            executionPromise = runPython(code, outputArea, errorOutput, inputData, signal);
         } else if (lang === "sql") {
             executionPromise = runSQLWithTimeout(code, outputArea, MAX_WAIT_TIME);
         } else if (lang === "c" || lang === "cpp") {
-            const executionResult = await runC_CPP(code, lang, outputArea, errorOutput);
-            if (executionResult.error) {
-                errorOutput.textContent = executionResult.error;
-            } else {
-                outputArea.innerText = executionResult.output;
-            }
+            executionPromise = runC_CPP(code, lang, outputArea, errorOutput, inputData);
         } else {
             throw new Error(`Unsupported language: ${lang}`);
         }
@@ -599,28 +580,28 @@ async function runC_CPP(code, language, outputArea, errorOutput) {
     } finally {
         hideLoadingScreen(); // ✅ Hide loading animation
     }
-  });
+});
 
   // ===============================
   // ✅ JavaScript Execution using Web Worker
   // ===============================
   async function runJavaScriptWithWorker(code, outputArea, errorOutput, timeout) {
     return new Promise((resolve, reject) => {
-        outputArea.innerText = ""; // ✅ Clear previous output
-        errorOutput.innerText = ""; // ✅ Clear previous errors
-        showLoadingScreen(timeout); // ✅ Start progress bar dynamically
+        outputArea.innerText = "";
+        errorOutput.innerText = "";
+        showLoadingScreen(timeout);
 
         const worker = new Worker("userWorker.js");
 
         worker.onmessage = function (e) {
             if (e.data.error) {
-                errorOutput.innerText = e.data.error; // ✅ Display error in UI
+                errorOutput.innerText = e.data.error;
                 reject(new Error(e.data.error));
             } else {
-                outputArea.innerText += e.data.output + "\n"; // ✅ Append logs to output
+                outputArea.innerText += e.data.output + "\n";
                 resolve();
             }
-            hideLoadingScreen(); // ✅ Hide loading screen when done
+            hideLoadingScreen();
             worker.terminate();
         };
 
@@ -632,61 +613,44 @@ async function runC_CPP(code, language, outputArea, errorOutput) {
 
         worker.postMessage({ code, timeout });
     });
-  }
+}
+
 
   // ===============================
   // ✅ Python Execution with Timeout, Input Support & Execution Time
   // ===============================
-  async function runPython(code, outputArea, errorOutput, inputArea, signal) {
-    showLoadingScreen(); // ✅ Show loading animation
+  async function runPython(code, outputArea, errorOutput, inputData, signal) {
+    showLoadingScreen();
 
-    const inputData = inputArea && inputArea.value ? inputArea.value.trim() : "";
-    const userTimeout = parseInt(document.getElementById("executionTimeout").value) || 5; // ✅ Get timeout from settings
-    const MAX_WAIT_TIME = Math.min(userTimeout, 20) * 1000; // ✅ Enforce a max limit (20 sec)
+    const userTimeout = parseInt(localStorage.getItem("executionTimeout")) || 5;
+    const MAX_WAIT_TIME = Math.min(userTimeout, 20) * 1000;
 
     try {
-        const startTime = performance.now();
-        const controller = signal || new AbortController();
-        const timeout = setTimeout(() => {
-            controller.abort();
-            errorOutput.innerText = `❌ Execution Timeout: Code exceeded ${userTimeout} seconds!`;
-        }, MAX_WAIT_TIME);
-
         const response = await fetch("https://bangu-python.onrender.com/run-code", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code, input_data: inputData, timeout: userTimeout }),
-            signal: controller.signal
+            body: JSON.stringify({ code, language: "python", input_data: inputData, timeout: userTimeout }),
+            signal: signal
         });
-
-        clearTimeout(timeout); // ✅ Clear timeout when execution succeeds
 
         if (!response.ok) {
             throw new Error(`❌ FastAPI Error: HTTP ${response.status} - ${response.statusText}`);
         }
 
         const result = await response.json();
-        const endTime = performance.now();
 
         if (result.error) {
             errorOutput.innerText = `❌ Error: ${result.error}`;
-            outputArea.innerText = "";
         } else {
-            outputArea.innerText = `${result.output}\n\n⏳ Execution Time: ${(endTime - startTime).toFixed(2)} ms`;
+            outputArea.innerText = `${result.output}\n\n⏳ Execution Time: ${userTimeout}s`;
         }
     } catch (error) {
         console.error("❌ Execution Error:", error);
-
-        // ✅ Handle timeout separately to avoid misleading errors
-        if (error.name === "AbortError") {
-            errorOutput.innerText = `❌ Execution Timeout: Code exceeded ${userTimeout} seconds!`;
-        } else {
-            errorOutput.innerText = `❌ Execution Error: ${error.message}`;
-        }
+        errorOutput.innerText = `❌ Execution Error: ${error.message}`;
     } finally {
-        hideLoadingScreen(); // ✅ Hide loading animation
+        hideLoadingScreen();
     }
-  }
+}
 
   // ✅ SQL Execution with Timeout
   async function runSQLWithTimeout(code, outputArea, timeout) {
@@ -706,7 +670,8 @@ async function runC_CPP(code, language, outputArea, errorOutput) {
             reject(error);
         }
     });
-  }
+}
+
 
   // ===============================
   // ✅ Clear Errors Function
