@@ -412,7 +412,7 @@ body.light-theme .resize-handle {
 @media (max-width: 768px) {
     /* Adjust navbar text size */
     .navbar h1 {
-        font-size: 1rem;
+        font-size: 0.8rem;
     }
     
     /* Make top-bar items stay in a single row with scrolling if needed */
@@ -513,13 +513,23 @@ body.light-theme .resize-handle {
         width: 95%;
     }
     
-    /* Adjust auth section for smaller screens */
+    /* Adjust auth section for mobile */
     #authSection {
         margin-right: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
-    
+
+    /* Show and style user info for mobile */
     #userInfo {
-        display: none; /* Hide user info text on mobile */
+        display: inline-block !important; /* Force show on mobile */
+        font-size: 0.7rem; /* Smaller font size */
+        max-width: 100px; /* Limit width */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+       
     }
     
     /* Make buttons slightly smaller on mobile */
