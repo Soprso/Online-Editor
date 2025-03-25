@@ -407,37 +407,132 @@ body.light-theme .resize-handle {
 }
 
 /* Responsive Design */
+/* Add these at the end of your styles.css file */
+
 @media (max-width: 768px) {
+    /* Adjust navbar text size */
+    .navbar h1 {
+        font-size: 1rem;
+    }
+    
+    /* Make top-bar items stay in a single row with scrolling if needed */
+    .top-bar {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 8px;
+        gap: 8px;
+        align-items: center;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .top-bar select, 
+    .top-bar button {
+        margin-left: 0;
+        flex-shrink: 0;
+    }
+    
+    /* Adjust container spacing to prevent overlap */
+    .container {
+        margin-top: 300px;
+        padding: 0 5px;
+    }
+    
+    /* Stack editor and io containers vertically */
     .editor-output-container {
         flex-direction: column;
         height: auto;
     }
-
-    .editor-container {
-        height: 40vh;
-        flex: 1; /* Take full width on mobile */
-        min-width: unset;
-        max-width: unset;
-    }
-
+    
+    /* Full width for both containers */
+    .editor-container,
     .io-container {
-        height: 40vh;
-        flex: 1; /* Take full width on mobile */
-        min-width: unset;
+        flex: 1 1 100%;
+        min-width: 100%;
+        max-width: 100%;
+        height: 50vh; /* Give decent height */
+        overflow: auto;
     }
-
-    .resize-handle {
-        display: none; /* Hide resize handle on mobile */
+    
+    /* Adjust editor height */
+    #editor {
+        height: 100%;
     }
-
-    .top-bar {
+    
+    /* Stack IO elements vertically */
+    .io-container {
+        display: flex;
         flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+        height: 50vh;
     }
-
-    .top-bar button {
-        margin-left: 0;
+    
+    /* Give proper heights to input, output, and error console */
+    #input {
+        flex: 0 0 20%;
+        min-height: 100px;
+        overflow: auto;
+    }
+    
+    #output {
+        flex: 0 0 40%;
+        min-height: 150px;
+        overflow: auto;
+    }
+    
+    #error-console {
+        flex: 0 0 40%;
+        min-height: 120px;
+        overflow: auto;
+    }
+    
+    /* Make sure resize handle is hidden */
+    .resize-handle {
+        display: none;
+    }
+    
+    /* Adjust auth section for smaller screens */
+    #authSection {
+        margin-right: 10px;
+    }
+    
+    #userInfo {
+        display: none; /* Hide user info text on mobile */
+    }
+    
+    /* Make buttons slightly smaller on mobile */
+    #signInBtn, #signOutBtn,
+    #run, #clear, #download, 
+    #settings, #format {
+        width: 24px;
+        height: 24px;
+    }
+    
+    /* Adjust modal for mobile */
+    .settings-content {
+        width: 95%;
+    }
+    
+    /* Adjust auth section for smaller screens */
+    #authSection {
+        margin-right: 10px;
+    }
+    
+    #userInfo {
+        display: none; /* Hide user info text on mobile */
+    }
+    
+    /* Make buttons slightly smaller on mobile */
+    #signInBtn, #signOutBtn,
+    #run, #clear, #download, 
+    #settings, #format {
+        width: 24px;
+        height: 24px;
+    }
+    
+    /* Adjust modal for mobile */
+    .settings-content {
+        width: 95%;
     }
 
     .navbar h1 {
@@ -614,11 +709,6 @@ body.light-theme .loading-screen p {
     transform: rotate(90deg); 
 }
 
-@media (max-width: 768px) {
-    .container {
-        margin-top: 50px; /* Adjust for smaller screens */
-    }
-}
 
 /* Settings Modal */
 .settings-modal {
