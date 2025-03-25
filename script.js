@@ -652,7 +652,7 @@ async function runC_CPP(code, language, outputArea, errorOutput) {
             errorOutput.innerText = `❌ Execution Timeout: Code exceeded ${userTimeout} seconds!`;
         }, MAX_WAIT_TIME);
 
-        const response = await fetch("https://bangu-python.onrender.com/run-python", {
+        const response = await fetch("https://bangu-python.onrender.com/run-code", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ code, input_data: inputData, timeout: userTimeout }),
