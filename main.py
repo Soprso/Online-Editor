@@ -24,7 +24,7 @@ app.add_middleware(
 
 class CodeRequest(BaseModel):
     code: str
-    language: str  # "python", "c", or "cpp"
+    language: str  # "python", "c", "cpp", "csharp"
     input_data: str = ""
     timeout: int = 5  # Default timeout in seconds
 
@@ -49,6 +49,8 @@ async def run_code(request: CodeRequest):
             result = await run_python(request)
         elif request.language in ["c", "cpp"]:
             result = await run_c_cpp(request)
+        elif request.language == "csharp":
+            result = await run_csharp(request)
         else:
             raise HTTPException(status_code=400, detail="Unsupported language")
             
@@ -68,7 +70,6 @@ async def run_code(request: CodeRequest):
 
 def terminate_process(process):
     try:
-        # Try to terminate the entire process group
         if hasattr(os, 'killpg'):
             try:
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
@@ -76,12 +77,10 @@ def terminate_process(process):
                 pass
         else:
             process.terminate()
-        
-        # Wait for process to terminate
+
         try:
             process.wait(timeout=2)
         except subprocess.TimeoutExpired:
-            # Force kill if still running
             if hasattr(os, 'killpg'):
                 try:
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
@@ -105,7 +104,6 @@ async def run_python(request: CodeRequest):
 
     process = None
     try:
-        # Platform-independent process creation
         kwargs = {
             'stdin': subprocess.PIPE,
             'stdout': subprocess.PIPE,
@@ -113,10 +111,9 @@ async def run_python(request: CodeRequest):
             'text': True,
         }
         
-        # Only set process group if on Unix-like system
         if os.name == 'posix':
             kwargs['preexec_fn'] = os.setsid
-        else:  # Windows
+        else:
             kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
 
         process = subprocess.Popen(
@@ -124,7 +121,6 @@ async def run_python(request: CodeRequest):
             **kwargs
         )
 
-        # Properly handle input with timeout
         try:
             stdout, stderr = process.communicate(
                 input=request.input_data,
@@ -143,7 +139,7 @@ async def run_python(request: CodeRequest):
         if process:
             terminate_process(process)
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 async def run_c_cpp(request: CodeRequest):
     temp_dir = "temp_exec"
     os.makedirs(temp_dir, exist_ok=True)
@@ -152,7 +148,6 @@ async def run_c_cpp(request: CodeRequest):
     executable = f"{base_path}"
 
     try:
-        # Write source file
         with open(src_file, "w") as f:
             f.write(request.code)
 
@@ -160,7 +155,6 @@ async def run_c_cpp(request: CodeRequest):
         compile_flags = ["-std=c++17", "-pthread"] if request.language == "cpp" else []
         compile_command = [compiler, src_file, "-o", executable] + compile_flags
 
-        # Compile
         compile_result = subprocess.run(
             compile_command,
             capture_output=True,
@@ -171,7 +165,6 @@ async def run_c_cpp(request: CodeRequest):
         if compile_result.returncode != 0:
             return {"error": compile_result.stderr}
 
-        # Run with proper input handling
         process = None
         try:
             kwargs = {
@@ -191,7 +184,6 @@ async def run_c_cpp(request: CodeRequest):
                 **kwargs
             )
 
-            # Properly handle input with timeout
             try:
                 stdout, stderr = process.communicate(
                     input=request.input_data,
@@ -211,10 +203,7 @@ async def run_c_cpp(request: CodeRequest):
                 terminate_process(process)
             raise
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
     finally:
-        # Cleanup
         for f in [src_file, executable]:
             try:
                 if os.path.exists(f):
@@ -226,6 +215,55 @@ async def run_c_cpp(request: CodeRequest):
                 shutil.rmtree(temp_dir)
         except:
             pass
+
+async def run_csharp(request: CodeRequest):
+    temp_dir = "temp_exec"
+    os.makedirs(temp_dir, exist_ok=True)
+    base_path = os.path.join(temp_dir, str(uuid.uuid4()))
+    cs_file = f"{base_path}.cs"
+    exe_file = f"{base_path}.exe"
+
+    try:
+        with open(cs_file, "w") as f:
+            f.write(request.code)
+
+        compile_command = ["csc", cs_file, "/out:" + exe_file]
+
+        compile_result = subprocess.run(
+            compile_command,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if compile_result.returncode != 0:
+            return {"error": compile_result.stderr}
+
+        process = subprocess.Popen(
+            [exe_file],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        stdout, stderr = process.communicate(input=request.input_data, timeout=request.timeout)
+
+        return {"output": stdout.strip(), "error": stderr.strip()}
+
+    finally:
+        for f in [cs_file, exe_file]:
+            try:
+                if os.path.exists(f):
+                    os.remove(f)
+            except:
+                pass
+        try:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+        except:
+            pass
+
 @app.get("/")
 async def health_check():
     return {"status": "running"}

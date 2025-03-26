@@ -124,6 +124,7 @@ document.addEventListener("DOMContentLoaded", function () {
               languageDropdown.innerHTML += `
                   <option value="c">C</option>
                   <option value="cpp">C++</option>
+                  <option value="csharp">C#</option> <!-- ✅ Added C# -->
               `;
           }
   
@@ -174,7 +175,14 @@ int main() {
 cout << "Hello, C++!" << endl;
 return 0;
 }`;
-      } else {
+      }else if (language === "csharp") {
+        defaultCode = `using System;
+class Program {
+    static void Main() {
+        Console.WriteLine("Hello, C#!");
+    }
+}`;
+    }  else {
           console.error("❌ Unsupported language:", language);
           return;
       }
@@ -233,6 +241,7 @@ return 0;
       case "sql": extension = "sql"; break;
       case "c": extension = "c"; break;
       case "cpp": extension = "cpp"; break;
+      case "csharp": extension = "csharp"; break;
     }
 
     // Create a downloadable file
@@ -692,6 +701,9 @@ document.getElementById("run")?.addEventListener("click", async function () {
               case "cpp":
                   executionResult = await runC_CPP(code, lang, outputArea, errorOutput, inputData);
                   break;
+            case "csharp":
+                  executionResult = await runCSharp(code, outputArea, errorOutput, inputData);
+                  break;
               default:
                   throw new Error(`Unsupported language: ${lang}`);
           }
@@ -1017,12 +1029,44 @@ document.getElementById("run")?.addEventListener("click", async function () {
     });
 }
 
+// =========================================RUN C# code==========================================
+
+async function runCSharp(code, outputArea, errorOutput, inputData) {
+    const API_URL = "https://bangu-python.onrender.com/run-code";
+
+    try {
+        outputArea.textContent = "";
+        errorOutput.textContent = "";
+
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                code: code,
+                language: "csharp",
+                input_data: inputData,
+                timeout: 10  
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        outputArea.textContent = data.output || "";
+        errorOutput.textContent = data.error || "";
+
+    } catch (error) {
+        errorOutput.textContent = `❌ Execution Error: ${error.message}`;
+    }
+}
+
+
 // =======================================open close modal===================================
 const modal = document.getElementById("infoModal");
     const openBtn = document.getElementById("openModal");
     const closeBtn = document.querySelector(".close-btn");
-
-    
 
     // ✅ Ensure elements exist before adding event listeners
     if (modal && openBtn && closeBtn) {
