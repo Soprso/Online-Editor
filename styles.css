@@ -959,3 +959,70 @@ body.light-theme #input {
     background: var(--input-bg-light);
     color: black;
 } 
+
+/* ======================== */
+/* OUTPUT STYLING CLASSES */
+/* ======================== */
+.output-placeholder {
+    color: #666;
+    font-style: italic;
+    padding: 10px;
+}
+
+.success-output {
+    color: #4CAF50;
+    white-space: pre-wrap;
+    padding: 10px;
+    font-family: monospace;
+    background-color: rgba(76, 175, 80, 0.1);
+    border-left: 3px solid #4CAF50;
+}
+
+.partial-output {
+    color: #FF9800;
+    white-space: pre-wrap;
+    padding: 10px;
+    font-family: monospace;
+    background-color: rgba(255, 152, 0, 0.1);
+    border-left: 3px solid #FF9800;
+}
+
+.error-message {
+    color: #F44336;
+    white-space: pre-wrap;
+    padding: 10px;
+    font-family: monospace;
+    background-color: rgba(244, 67, 54, 0.1);
+    border-left: 3px solid #F44336;
+}
+
+.execution-time {
+    color: #2196F3;
+    margin-top: 10px;
+    padding: 5px 10px;
+    font-size: 0.9em;
+    background-color: rgba(33, 150, 243, 0.1);
+    display: inline-block;
+    border-radius: 4px;
+}
+
+/* Light Theme Adjustments */
+body.light-theme .success-output {
+    background-color: rgba(76, 175, 80, 0.05);
+    color: #2E7D32;
+}
+
+body.light-theme .partial-output {
+    background-color: rgba(255, 152, 0, 0.05);
+    color: #EF6C00;
+}
+
+body.light-theme .error-message {
+    background-color: rgba(244, 67, 54, 0.05);
+    color: #C62828;
+}
+
+body.light-theme .execution-time {
+    background-color: rgba(33, 150, 243, 0.05);
+    color: #1565C0;
+}
