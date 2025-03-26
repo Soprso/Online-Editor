@@ -216,12 +216,19 @@ async def run_c_cpp(request: CodeRequest):
         except:
             pass
 
+import shutil  # ✅ Add this to check if `dotnet` exists
+
 async def run_csharp(request: CodeRequest):
+    dotnet_path = shutil.which("dotnet")  # ✅ Auto-detect `dotnet` path
+
+    if not dotnet_path:
+        return {"error": "❌ `dotnet` command not found. Ensure .NET SDK is installed in Render."}
+
     try:
-        print("🔹 Running C# code with dotnet-script")  # Debugging log
+        print(f"🔹 Running C# code using: {dotnet_path} script")  # Debugging log
 
         process = subprocess.Popen(
-            ["dotnet", "script", "--eval", request.code],  # ✅ Run C# without compilation
+            [dotnet_path, "script", "--eval", request.code],  # ✅ Use full path
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -239,6 +246,7 @@ async def run_csharp(request: CodeRequest):
     except Exception as e:
         print(f"❌ Error Running C# Code: {str(e)}")
         return {"error": str(e)}
+
 
 @app.get("/")
 async def health_check():
