@@ -105,35 +105,45 @@ async def run_python(request: CodeRequest):
 
     process = None
     try:
+        # Platform-independent process creation
+        kwargs = {
+            'stdin': subprocess.PIPE,
+            'stdout': subprocess.PIPE,
+            'stderr': subprocess.PIPE,
+            'text': True,
+        }
+        
+        # Only set process group if on Unix-like system
+        if os.name == 'posix':
+            kwargs['preexec_fn'] = os.setsid
+        else:  # Windows
+            kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+
         process = subprocess.Popen(
             ["python", "-c", code_to_run],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            preexec_fn=os.setsid if hasattr(os, 'setsid') else None,
-            start_new_session=True
+            **kwargs
         )
 
-        stdout, stderr = process.communicate(
-            input=request.input_data,
-            timeout=request.timeout
-        )
+        # Properly handle input with timeout
+        try:
+            stdout, stderr = process.communicate(
+                input=request.input_data,
+                timeout=request.timeout
+            )
+        except subprocess.TimeoutExpired:
+            terminate_process(process)
+            raise HTTPException(status_code=408, detail="Python execution timed out")
 
         return {
             "output": stdout.strip(),
             "error": stderr.strip(),
             "formatted_code": code_to_run
         }
-    except subprocess.TimeoutExpired:
-        if process:
-            terminate_process(process)
-        raise HTTPException(status_code=408, detail="Python execution timed out")
     except Exception as e:
         if process:
             terminate_process(process)
-        raise
-
+        raise HTTPException(status_code=500, detail=str(e))
+    
 async def run_c_cpp(request: CodeRequest):
     temp_dir = "temp_exec"
     os.makedirs(temp_dir, exist_ok=True)
@@ -161,41 +171,45 @@ async def run_c_cpp(request: CodeRequest):
         if compile_result.returncode != 0:
             return {"error": compile_result.stderr}
 
-        # Run with cross-platform process group handling
+        # Run with proper input handling
         process = None
         try:
-            creationflags = 0
+            kwargs = {
+                'stdin': subprocess.PIPE,
+                'stdout': subprocess.PIPE,
+                'stderr': subprocess.PIPE,
+                'text': True,
+            }
+            
             if os.name == 'posix':
-                kwargs = {'preexec_fn': os.setsid}
+                kwargs['preexec_fn'] = os.setsid
             else:
-                kwargs = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP}
+                kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
 
             process = subprocess.Popen(
                 [f"./{executable}"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
                 **kwargs
             )
 
-            stdout, stderr = process.communicate(
-                input=request.input_data,
-                timeout=request.timeout
-            )
+            # Properly handle input with timeout
+            try:
+                stdout, stderr = process.communicate(
+                    input=request.input_data,
+                    timeout=request.timeout
+                )
+            except subprocess.TimeoutExpired:
+                terminate_process(process)
+                raise HTTPException(status_code=408, detail="Execution timed out")
 
             return {
                 "output": stdout.strip(),
                 "error": stderr.strip()
             }
 
-        except subprocess.TimeoutExpired:
+        except Exception as e:
             if process:
-                if os.name == 'posix':
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                else:
-                    process.terminate()
-            raise HTTPException(status_code=408, detail="Execution timed out")
+                terminate_process(process)
+            raise
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -212,7 +226,6 @@ async def run_c_cpp(request: CodeRequest):
                 shutil.rmtree(temp_dir)
         except:
             pass
-
 @app.get("/")
 async def health_check():
     return {"status": "running"}
