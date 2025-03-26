@@ -217,30 +217,11 @@ async def run_c_cpp(request: CodeRequest):
             pass
 
 async def run_csharp(request: CodeRequest):
-    temp_dir = "temp_exec"
-    os.makedirs(temp_dir, exist_ok=True)
-    base_path = os.path.join(temp_dir, str(uuid.uuid4()))
-    cs_file = f"{base_path}.cs"
-    exe_file = f"{base_path}.exe"
-
     try:
-        with open(cs_file, "w") as f:
-            f.write(request.code)
-
-        compile_command = ["csc", cs_file, "/out:" + exe_file]
-
-        compile_result = subprocess.run(
-            compile_command,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-
-        if compile_result.returncode != 0:
-            return {"error": compile_result.stderr}
+        print("🔹 Running C# code with dotnet-script")  # Debugging log
 
         process = subprocess.Popen(
-            [exe_file],
+            ["dotnet", "script", "--eval", request.code],  # ✅ Run C# without compilation
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -251,18 +232,13 @@ async def run_csharp(request: CodeRequest):
 
         return {"output": stdout.strip(), "error": stderr.strip()}
 
-    finally:
-        for f in [cs_file, exe_file]:
-            try:
-                if os.path.exists(f):
-                    os.remove(f)
-            except:
-                pass
-        try:
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-        except:
-            pass
+    except subprocess.TimeoutExpired:
+        print("❌ C# Execution Timed Out")
+        return {"error": "C# execution timed out"}
+
+    except Exception as e:
+        print(f"❌ Error Running C# Code: {str(e)}")
+        return {"error": str(e)}
 
 @app.get("/")
 async def health_check():
