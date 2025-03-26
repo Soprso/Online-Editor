@@ -142,44 +142,43 @@ async def run_c_cpp(request: CodeRequest):
     executable = f"{base_path}"
 
     try:
-        # Write source file with proper headers
+        # Write source file
         with open(src_file, "w") as f:
             f.write(request.code)
 
         compiler = "gcc" if request.language == "c" else "g++"
-        
-        # Enhanced compilation flags
-        compile_flags = ["-std=c++17", "-pthread", "-O2"]
-        if request.language == "c":
-            compile_flags = ["-O2"]  # C doesn't need thread flags
-            
+        compile_flags = ["-std=c++17", "-pthread"] if request.language == "cpp" else []
         compile_command = [compiler, src_file, "-o", executable] + compile_flags
 
-        # Compile with extended timeout
+        # Compile
         compile_result = subprocess.run(
             compile_command,
             capture_output=True,
             text=True,
-            timeout=min(20, request.timeout * 2)  # Double timeout for compilation
+            timeout=10
         )
 
         if compile_result.returncode != 0:
             return {"error": compile_result.stderr}
 
-        # Run with proper process group killing
+        # Run with cross-platform process group handling
         process = None
         try:
+            creationflags = 0
+            if os.name == 'posix':
+                kwargs = {'preexec_fn': os.setsid}
+            else:
+                kwargs = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP}
+
             process = subprocess.Popen(
                 [f"./{executable}"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                preexec_fn=os.setsid,
-                start_new_session=True
+                **kwargs
             )
 
-            # Use communicate with timeout
             stdout, stderr = process.communicate(
                 input=request.input_data,
                 timeout=request.timeout
@@ -191,23 +190,17 @@ async def run_c_cpp(request: CodeRequest):
             }
 
         except subprocess.TimeoutExpired:
-            # Kill entire process group
-            try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            raise HTTPException(status_code=408, detail="Execution timed out")
-            
-        except Exception as e:
-            if process and process.poll() is None:
-                try:
+            if process:
+                if os.name == 'posix':
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            raise
+                else:
+                    process.terminate()
+            raise HTTPException(status_code=408, detail="Execution timed out")
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
-        # Cleanup files
+        # Cleanup
         for f in [src_file, executable]:
             try:
                 if os.path.exists(f):
@@ -219,6 +212,7 @@ async def run_c_cpp(request: CodeRequest):
                 shutil.rmtree(temp_dir)
         except:
             pass
+
 @app.get("/")
 async def health_check():
     return {"status": "running"}
