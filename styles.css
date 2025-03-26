@@ -1056,4 +1056,77 @@ body.light-theme .execution-time {
     height: 20px;
     animation: hop 0.7s infinite ease-in-out;
   }
-  
+
+  /* Modal Background */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    backdrop-filter: blur(5px); /* Blurred effect */
+}
+
+/* Modal Content Box */
+.modal-content {
+    background: #222; /* Dark theme */
+    color: #fff;
+    margin: 15% auto;
+    padding: 20px;
+    width: 60%;
+    max-width: 400px;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 0 2px yellowgreen;
+}
+
+.modal-content p{
+    margin-top: 30px;
+    font-family: monospace;
+}
+
+.modal-content h2{
+    color: yellowgreen;
+}
+
+/* Close Button */
+.close-btn {
+    float: right;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: red;
+}
+
+/* Small frog icon */
+.frog-icon-small {
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+}
+
+.frog-icon-small:hover {
+    transform: scale(1.1);
+}
+
+/* Modal Opening Animation */
+@keyframes modalFadeZoom {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Apply animation when modal appears */
+.modal-content {
+    animation: modalFadeZoom 0.3s ease-out;
+}
+ 

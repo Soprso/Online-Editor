@@ -487,7 +487,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
       if (error.message.includes("Failed to fetch")) {
           errorMessage = "Network error: Could not reach execution server.";
       } else if (error.message.includes("timed out")) {
-          errorMessage = `Execution timed out after ${executionTimeout}s.`;
+          errorMessage = `Execution timed out after ${MAX_WAIT_TIME/1000}s.`;
       }
 
       errorOutput.innerHTML = `
@@ -819,8 +819,10 @@ document.getElementById("run")?.addEventListener("click", async function () {
   // ===============================
   async function runPython(code, outputArea, errorOutput, inputData, signal) {
     const API_URL = "https://bangu-python.onrender.com/run-code";
-    const MAX_TIMEOUT = 20; // Maximum execution timeout
-    const DEFAULT_TIMEOUT = 5; // Default timeout if not set by user
+    const MAX_TIMEOUT = 20;
+    const DEFAULT_TIMEOUT = 5;
+    let timeoutId;
+    let executionCompleted = false;
 
     try {
         // Validate UI elements
@@ -829,24 +831,17 @@ document.getElementById("run")?.addEventListener("click", async function () {
             return { error: "UI configuration error", status: "error" };
         }
 
-        // Show frog animation before execution
-        outputArea.innerHTML = `
-            <div class="output-loading">
-                <img id="frog" src="images/frog4.png" alt="Frog">
-                <span>Initializing execution...</span>
-            </div>
-        `;
-        errorOutput.textContent = ""; // Clear previous error messages
+        // Show loading state
+        showLoadingState(outputArea);
+        errorOutput.textContent = "";
 
-        // Validate code input
+        // Validate code
         if (!code?.trim()) {
             throw new Error("The code editor is empty");
         }
 
-        // Fetch user-defined timeout, clamping it within safe limits
-        const userTimeout = parseInt(localStorage.getItem("executionTimeout")) || DEFAULT_TIMEOUT;
-        const safeTimeout = Math.min(userTimeout, MAX_TIMEOUT);
-
+        // Calculate timeout
+        const safeTimeout = calculateSafeTimeout();
         console.debug("[Python Execution] Starting", {
             codeLength: code.length,
             inputLength: inputData?.length || 0,
@@ -857,6 +852,16 @@ document.getElementById("run")?.addEventListener("click", async function () {
         let response;
 
         try {
+            // Setup timeout
+            const controller = new AbortController();
+            timeoutId = setTimeout(() => {
+                if (!executionCompleted) {
+                    controller.abort();
+                    throw new Error(`Network request timed out after ${safeTimeout + 2}s`);
+                }
+            }, (safeTimeout + 2) * 1000);
+
+            // Make API request
             response = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -866,90 +871,127 @@ document.getElementById("run")?.addEventListener("click", async function () {
                     input_data: inputData || "",
                     timeout: safeTimeout
                 }),
-                signal: AbortSignal.timeout((safeTimeout + 2) * 1000) // Add 2s buffer
+                signal: controller.signal
             });
-        } catch (err) {
-            if (err.name === "AbortError") {
-                throw new Error(`Network request timed out after ${safeTimeout + 2}s`);
+
+            const responseTime = performance.now() - startTime;
+            console.debug(`[Python Execution] Response received in ${responseTime.toFixed(2)}ms`);
+
+            // Handle response
+            if (!response.ok) {
+                throw await handleErrorResponse(response);
             }
+
+            const data = await response.json();
+            console.debug("[Python Execution] Result:", data);
+            executionCompleted = true;
+            clearTimeout(timeoutId);
+
+            displayResults(data, outputArea, errorOutput, responseTime, safeTimeout);
+            return formatSuccessResponse(data, responseTime, safeTimeout);
+
+        } catch (err) {
+            executionCompleted = true;
+            clearTimeout(timeoutId);
             throw err;
         }
 
-        const responseTime = performance.now() - startTime;
-        console.debug(`[Python Execution] Response received in ${responseTime.toFixed(2)}ms`);
+    } catch (error) {
+        console.error("[Python Execution] Error:", error);
+        handleExecutionError(error, outputArea, errorOutput, safeTimeout);
+        return formatErrorResponse(error, safeTimeout);
 
-        // Handle HTTP errors
-        if (!response.ok) {
-            let errorDetails;
-            try {
-                errorDetails = await response.json();
-            } catch {
-                errorDetails = await response.text();
-            }
+    } finally {
+        cleanupExecution(outputArea);
+    }
 
-            const serverMessage = errorDetails.detail || errorDetails.message || JSON.stringify(errorDetails);
-            throw new Error(`Server responded with ${response.status}: ${serverMessage}`);
+    // Helper functions
+    function showLoadingState(outputArea) {
+        outputArea.innerHTML = `
+            <div class="output-loading">
+                <img id="frog" src="images/frog4.png" alt="Frog">
+                <span>Initializing execution...</span>
+            </div>
+        `;
+    }
+
+    function calculateSafeTimeout() {
+        const userTimeout = parseInt(localStorage.getItem("executionTimeout")) || DEFAULT_TIMEOUT;
+        return Math.min(userTimeout, MAX_TIMEOUT);
+    }
+
+    async function handleErrorResponse(response) {
+        let errorDetails;
+        try {
+            errorDetails = await response.json();
+        } catch {
+            errorDetails = await response.text();
         }
+        return new Error(`Server responded with ${response.status}: ${
+            errorDetails.detail || errorDetails.message || JSON.stringify(errorDetails)
+        }`);
+    }
 
-        const data = await response.json();
-        console.debug("[Python Execution] Result:", data);
+    function displayResults(data, outputArea, errorOutput, responseTime, timeout) {
+        outputArea.innerHTML = data.output ? `
+            <pre class="success-output">${data.output}</pre>
+            <div class="execution-meta">
+                ⏳ Execution time: ${responseTime.toFixed(2)}ms | 
+                Timeout: ${timeout}s
+            </div>
+        ` : `<pre class="failure-output">(No output generated)</pre>`;
 
-        // Remove frog animation
-        outputArea.innerHTML = "";
-
-        // Display output or failure message
-        if (data.output) {
-            outputArea.innerHTML = `
-                <pre class="success-output">${data.output}</pre>
-                <div class="execution-meta">
-                    ⏳ Execution time: ${responseTime.toFixed(2)}ms | 
-                    Timeout: ${safeTimeout}s
-                </div>
-            `;
-        } else {
-            outputArea.innerHTML = `
-                <pre class="failure-output">(No output generated)</pre>
-            `;
-        }
-
-        // Display error messages if execution failed
         if (data.error) {
             errorOutput.innerHTML = `
                 <div class="error-header">⚠️ Execution Log</div>
                 <pre class="error-output">${data.error}</pre>
             `;
         }
+    }
 
+    function formatSuccessResponse(data, responseTime, timeout) {
         return {
             ...data,
             executionTime: responseTime,
-            appliedTimeout: safeTimeout,
+            appliedTimeout: timeout,
             status: "success"
         };
+    }
 
-    } catch (error) {
-        console.error("[Python Execution] Error:", error);
+    function handleExecutionError(error, outputArea, errorOutput, timeout) {
+        const errorMessage = error.message.includes("Failed to fetch") 
+            ? "Network error: Could not reach execution server"
+            : error.message.includes("timed out")
+            ? `Execution timed out after ${timeout}s`
+            : error.message;
 
-        let errorMessage = error.message;
-        if (error.message.includes("Failed to fetch")) {
-            errorMessage = "Network error: Could not reach execution server";
-        } else if (error.message.includes("timed out")) {
-            errorMessage = `Execution timed out after ${safeTimeout}s`;
-        }
-
+        outputArea.innerHTML = `<pre class="failure-output">(Execution Failed)</pre>`;
         errorOutput.innerHTML = `
             <div class="error-header">❌ Execution Failed</div>
             <div class="error-message">${errorMessage}</div>
-            ${error.stack ? `<details class="error-details"><summary>Technical details</summary>${error.stack}</details>` : ""}
+            ${error.stack ? `
+                <details class="error-details">
+                    <summary>Technical details</summary>
+                    ${error.stack}
+                </details>
+            ` : ""}
         `;
+    }
 
-        outputArea.innerHTML = `
-            <pre class="failure-output">(Execution Failed)</pre>
-        `;
+    function formatErrorResponse(error, timeout) {
+        return {
+            error: error.message.includes("Failed to fetch")
+                ? "Network error: Could not reach execution server"
+                : error.message.includes("timed out")
+                ? `Execution timed out after ${timeout}s`
+                : error.message,
+            status: "error",
+            stack: error.stack
+        };
+    }
 
-        return { error: errorMessage, status: "error", stack: error.stack };
-
-    } finally {
+    function cleanupExecution(outputArea) {
+        if (timeoutId) clearTimeout(timeoutId);
         console.debug("[Python Execution] Completed");
         outputArea.classList.remove("loading");
     }
@@ -975,6 +1017,34 @@ document.getElementById("run")?.addEventListener("click", async function () {
     });
 }
 
+// =======================================open close modal===================================
+const modal = document.getElementById("infoModal");
+    const openBtn = document.getElementById("openModal");
+    const closeBtn = document.querySelector(".close-btn");
+
+    
+
+    // ✅ Ensure elements exist before adding event listeners
+    if (modal && openBtn && closeBtn) {
+        // Open modal when frog image is clicked
+        openBtn.addEventListener("click", function () {
+            modal.style.display = "flex"; // Use 'flex' instead of 'block' for better centering
+        });
+
+        // Close modal when close button is clicked
+        closeBtn.addEventListener("click", function () {
+            modal.style.display = "none";
+        });
+
+        // Close modal when clicking outside the content
+        window.addEventListener("click", function (event) {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+    } else {
+        console.error("Modal elements not found! Check your HTML IDs.");
+    }
 
   // ===============================
   // ✅ Clear Errors Function
