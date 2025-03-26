@@ -969,13 +969,24 @@ body.light-theme #input {
     padding: 10px;
 }
 
+/* Success Output */
 .success-output {
-    color: #4CAF50;
+    color: #4CAF50; /* Green text */
     white-space: pre-wrap;
     padding: 10px;
     font-family: monospace;
-    background-color: rgba(76, 175, 80, 0.1);
+    background-color: rgba(76, 175, 80, 0.1); /* Light green background */
     border-left: 3px solid #4CAF50;
+}
+
+/* Failure Output */
+.failure-output {
+    color: #D32F2F; /* Red text */
+    white-space: pre-wrap;
+    padding: 10px;
+    font-family: monospace;
+    background-color: rgba(211, 47, 47, 0.1); /* Light red background */
+    border-left: 3px solid #D32F2F;
 }
 
 .partial-output {
@@ -1026,3 +1037,23 @@ body.light-theme .execution-time {
     background-color: rgba(33, 150, 243, 0.05);
     color: #1565C0;
 }
+
+/* @keyframes hop {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0); }
+  } */
+  
+  .output-loading {
+    display: flex; /* Align items side by side */
+    align-items: center; /* Center vertically */
+    gap: 10px; /* Add space between the frog and text */
+    font-size: 14px; /* Adjust text size */
+  }
+  
+  #frog {
+    width: 20px;
+    height: 20px;
+    animation: hop 0.7s infinite ease-in-out;
+  }
+  

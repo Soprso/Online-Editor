@@ -363,9 +363,9 @@ return 0;
 // ===============================
 async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
   const API_URL = "https://bangu-python.onrender.com/run-code";
-  const MAX_TIMEOUT = 30; // Maximum allowed timeout
+  const MAX_TIMEOUT = 30; // Maximum allowed timeout (in seconds)
   const MIN_TIMEOUT = 1;  // Minimum allowed timeout
-  const DEFAULT_TIMEOUT = 5; // Fallback timeout
+  const DEFAULT_TIMEOUT = 5; // Default timeout value
 
   try {
       // Validate DOM elements
@@ -377,37 +377,40 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
           };
       }
 
-      // Clear previous outputs with animation
-      outputArea.innerHTML = '<div class="output-loading">⌛ Initializing execution...</div>';
+      // Clear previous outputs and show loading animation
+      outputArea.innerHTML = `
+          <div class="output-loading">
+              <img id="frog" src="images/frog4.png" alt="Frog">
+              <span>Initializing execution...</span>
+          </div>
+      `;
       errorOutput.textContent = "";
-      
+
       // Validate code input
       if (!code?.trim()) {
-          throw new Error("The code editor is empty");
+          throw new Error("The code editor is empty. Please enter some code.");
       }
 
-      // Calculate safe timeout (clamped between min and max)
+      // Get user-defined timeout from localStorage (default if not set)
       const userTimeout = parseInt(localStorage.getItem("executionTimeout")) || DEFAULT_TIMEOUT;
-      const safeTimeout = Math.max(
-          MIN_TIMEOUT, 
-          Math.min(userTimeout, MAX_TIMEOUT)
-      );
+      const executionTimeout = Math.max(MIN_TIMEOUT, Math.min(userTimeout, MAX_TIMEOUT));
 
-      console.debug("[C++ Execution] Starting", { 
+      console.debug("[C++ Execution] Starting", {
           language,
           codeLength: code.length,
           inputLength: inputData?.length || 0,
           userTimeout,
-          safeTimeout
+          executionTimeout
       });
 
+      // Track execution time
       const startTime = performance.now();
       let response;
-      
+
       try {
           response = await fetch(API_URL, {
               method: "POST",
-              headers: { 
+              headers: {
                   "Content-Type": "application/json",
                   "Accept": "application/json"
               },
@@ -415,15 +418,15 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
                   code: code,
                   language: language,
                   input_data: inputData || "",
-                  timeout: safeTimeout
+                  timeout: executionTimeout
               }),
-              signal: AbortSignal.timeout((safeTimeout + 2) * 1000) // Add 2s buffer
+              signal: AbortSignal.timeout((executionTimeout + 2) * 1000) // 2s buffer
           });
-      } catch (err) {
-          if (err.name === 'AbortError') {
-              throw new Error(`Network request timed out after ${safeTimeout + 2}s`);
+      } catch (fetchError) {
+          if (fetchError.name === "AbortError") {
+              throw new Error(`Network request timed out after ${executionTimeout + 2}s.`);
           }
-          throw err;
+          throw fetchError;
       }
 
       const responseTime = performance.now() - startTime;
@@ -435,37 +438,33 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
           try {
               errorDetails = await response.json();
           } catch {
-              try {
-                  errorDetails = await response.text();
-              } catch {
-                  errorDetails = "Unknown server error";
-              }
+              errorDetails = await response.text();
           }
-          
-          const serverMessage = errorDetails.detail || 
-                              errorDetails.message || 
-                              JSON.stringify(errorDetails);
-          
+
+          const serverMessage = errorDetails.detail || errorDetails.message || JSON.stringify(errorDetails);
           throw new Error(`Server responded with ${response.status}: ${serverMessage}`);
       }
 
+      // Process response data
       const data = await response.json();
       console.debug("[C++ Execution] Result:", data);
 
-      // Format output
+      // Display output
       if (data.output) {
           outputArea.innerHTML = `
               <pre class="success-output">${data.output}</pre>
               <div class="execution-meta">
                   ⏳ Execution time: ${responseTime.toFixed(2)}ms | 
-                  Timeout: ${safeTimeout}s
+                  Timeout: ${executionTimeout}s
               </div>
           `;
       } else {
-          outputArea.textContent = "(No output generated)";
+        outputArea.innerHTML = `
+        <pre class="failure-output">(No output generated)</pre>
+    `;
       }
 
-      // Format errors
+      // Display error logs
       if (data.error) {
           errorOutput.innerHTML = `
               <div class="error-header">⚠️ Execution Log</div>
@@ -476,29 +475,29 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
       return {
           ...data,
           executionTime: responseTime,
-          appliedTimeout: safeTimeout,
+          appliedTimeout: executionTimeout,
           status: "success"
       };
-      
+
   } catch (error) {
       console.error("[C++ Execution] Error:", error);
-      
+
       // User-friendly error messages
       let errorMessage = error.message;
       if (error.message.includes("Failed to fetch")) {
-          errorMessage = "Network error: Could not reach execution server";
+          errorMessage = "Network error: Could not reach execution server.";
       } else if (error.message.includes("timed out")) {
-          errorMessage = `Execution timed out after ${safeTimeout}s`;
+          errorMessage = `Execution timed out after ${executionTimeout}s.`;
       }
 
       errorOutput.innerHTML = `
           <div class="error-header">❌ Execution Failed</div>
           <div class="error-message">${errorMessage}</div>
-          ${error.stack ? `<details class="error-details"><summary>Technical details</summary>${error.stack}</details>` : ''}
+          ${error.stack ? `<details class="error-details"><summary>Technical details</summary><pre>${error.stack}</pre></details>` : ""}
       `;
-      
+
       outputArea.textContent = "";
-      
+
       return {
           error: errorMessage,
           status: "error",
@@ -506,7 +505,6 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
       };
   } finally {
       console.debug("[C++ Execution] Completed");
-      // Ensure loading states are cleared
       outputArea.classList.remove("loading");
   }
 }
@@ -516,12 +514,19 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
   // ===============================
   async function runSQL(code, outputArea) {
     try {
-        showLoadingScreen(); // ✅ Show loading screen before execution
+        // ✅ Show frog animation before execution
+        outputArea.innerHTML = `
+            <div class="output-loading">
+                <img id="frog" src="images/frog4.png" alt="Frog">
+                <span>Initializing SQL execution...</span>
+            </div>
+        `;
+
         const SQL = await initSqlJs({
             locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.wasm`,
         });
         const db = new SQL.Database(); // In-memory database
-  
+
         // Sample table creation for testing
         db.run(`
             CREATE TABLE products (
@@ -531,7 +536,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
                 stock INTEGER DEFAULT 0
             );
         `);
-  
+
         db.run(`
             INSERT INTO products (id, name, price, stock) VALUES
             (1, 'Laptop', 999.99, 10),
@@ -540,56 +545,55 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
             (4, 'Wireless Mouse', 19.99, 50),
             (5, 'Mechanical Keyboard', 89.99, 30);
         `);
-  
+
         // Define max execution time (in milliseconds)
-        const MAX_WAIT_TIME = (localStorage.getItem("executionTimeout") || 30) * 1000; // Default: 20s
-  
+        const MAX_WAIT_TIME = (localStorage.getItem("executionTimeout") || 30) * 1000; // Default: 30s
+        let executionCompleted = false;
+
         return new Promise((resolve, reject) => {
-            let executionCompleted = false;
-  
             // Set a timeout to enforce max execution time
             const timeout = setTimeout(() => {
                 if (!executionCompleted) {
+                    outputArea.innerHTML = `<pre class="failure-output">⏳ SQL Execution Timeout! Query took too long.</pre>`;
                     reject(new Error("⏳ SQL Execution Timeout! Query took too long."));
                 }
             }, MAX_WAIT_TIME);
-  
+
             try {
                 const queries = code.split(";").filter((q) => q.trim() !== ""); // Remove empty queries
                 let allResultsHTML = "";
-  
+                const startTime = performance.now();
+
                 for (let query of queries) {
-                    const startTime = performance.now();
                     const results = db.exec(query);
-                    const endTime = performance.now();
-  
-                    if (endTime - startTime > MAX_WAIT_TIME) {
-                        reject(new Error("⏳ SQL Execution Timeout! Query exceeded time limit."));
-                        return;
-                    }
-  
+
                     if (results.length > 0) {
                         allResultsHTML += formatSQLResults(results);
                     }
                 }
-  
+
                 executionCompleted = true; // Mark execution as done
                 clearTimeout(timeout); // Clear timeout
-  
-                // If no results, show a success message
-                outputArea.innerHTML = allResultsHTML || "<p>✅ Query executed successfully. No results.</p>";
+                const endTime = performance.now();
+                const executionTime = `⏳ Execution Time: ${(endTime - startTime).toFixed(2)} ms`;
+
+                // ✅ Replace frog animation with results
+                outputArea.innerHTML = allResultsHTML || `<pre class="success-output">✅ Query executed successfully. No results.</pre>`;
+                outputArea.innerHTML += `<div class="execution-meta">${executionTime}</div>`;
                 resolve();
             } catch (error) {
+                executionCompleted = true;
+                clearTimeout(timeout); // ✅ Prevent double rejection
+                outputArea.innerHTML = `<pre class="failure-output">❌ SQL Error: ${error.message}</pre>`;
                 reject(new Error(`❌ SQL Error: ${error.message}`));
             }
         });
     } catch (error) {
-        outputArea.innerText = `❌ SQL Error: ${error.message}`;
+        outputArea.innerHTML = `<pre class="failure-output">❌ SQL Error: ${error.message}</pre>`;
     }
-    finally {
-        hideLoadingScreen(); // ✅ Hide loading screen after execution completes
-    }
-  }
+}
+
+
 
   // ✅ Format SQL Results
   function formatSQLResults(results) {
@@ -742,68 +746,212 @@ document.getElementById("run")?.addEventListener("click", async function () {
   // ===============================
   async function runJavaScriptWithWorker(code, outputArea, errorOutput, timeout) {
     return new Promise((resolve, reject) => {
-        outputArea.innerText = "";
-        errorOutput.innerText = "";
-        showLoadingScreen(timeout);
+        // Clear previous output
+        outputArea.innerHTML = `
+            <div class="output-loading">
+                <img id="frog" src="images/frog4.png" alt="Frog">
+                <span>Initializing execution...</span>
+            </div>
+        `;
+        errorOutput.innerHTML = ""; // Clear previous error messages
 
+        // Validate UI elements
+        if (!outputArea || !errorOutput) {
+            console.error("Output elements not found");
+            outputArea.innerHTML = `<pre class="failure-output">(UI Configuration Error)</pre>`;
+            return reject(new Error("UI configuration error"));
+        }
+
+        // Validate code input
+        if (!code?.trim()) {
+            outputArea.innerHTML = `<pre class="failure-output">(No code provided)</pre>`;
+            return reject(new Error("No code provided"));
+        }
+
+        // Create a new Web Worker
         const worker = new Worker("userWorker.js");
+        const startTime = performance.now();
 
         worker.onmessage = function (e) {
+            const responseTime = performance.now() - startTime;
+            outputArea.innerHTML = ""; // Remove frog animation
+
             if (e.data.error) {
-                errorOutput.innerText = e.data.error;
-                reject(new Error(e.data.error));
-            } else {
-                outputArea.innerText += e.data.output + "\n";
-                resolve();
+                errorOutput.innerHTML = `
+                    <div class="error-header">❌ JavaScript Error</div>
+                    <pre class="error-output">${e.data.error}</pre>
+                `;
+                outputArea.innerHTML = `<pre class="failure-output">(Execution Failed)</pre>`;
+                worker.terminate();
+                return reject(new Error(e.data.error));
             }
-            hideLoadingScreen();
+
+            // Display successful execution output
+            outputArea.innerHTML = `
+                <pre class="success-output">${e.data.output}</pre>
+            `;
+
             worker.terminate();
+            resolve();
         };
 
         worker.onerror = function (e) {
-            errorOutput.innerText = `❌ JavaScript Error: ${e.message}`;
-            reject(new Error(e.message));
-            hideLoadingScreen();
+            const errorMessage = `❌ JavaScript Error: ${e.message}`;
+            outputArea.innerHTML = ""; // Remove frog animation
+
+            errorOutput.innerHTML = `
+                <div class="error-header">❌ Execution Error</div>
+                <pre class="error-output">${errorMessage}</pre>
+            `;
+            outputArea.innerHTML = `<pre class="failure-output">(Execution Failed)</pre>`;
+
+            worker.terminate();
+            reject(new Error(errorMessage));
         };
 
+        // Send code and timeout to the Web Worker
         worker.postMessage({ code, timeout });
     });
 }
-
 
   // ===============================
   // ✅ Python Execution with Timeout, Input Support & Execution Time
   // ===============================
   async function runPython(code, outputArea, errorOutput, inputData, signal) {
-    showLoadingScreen();
-
-    const userTimeout = parseInt(localStorage.getItem("executionTimeout")) || 5;
-    const MAX_WAIT_TIME = Math.min(userTimeout, 20) * 1000;
+    const API_URL = "https://bangu-python.onrender.com/run-code";
+    const MAX_TIMEOUT = 20; // Maximum execution timeout
+    const DEFAULT_TIMEOUT = 5; // Default timeout if not set by user
 
     try {
-        const response = await fetch("https://bangu-python.onrender.com/run-code", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code, language: "python", input_data: inputData, timeout: userTimeout }),
-            signal: signal
+        // Validate UI elements
+        if (!outputArea || !errorOutput) {
+            console.error("Output elements not found");
+            return { error: "UI configuration error", status: "error" };
+        }
+
+        // Show frog animation before execution
+        outputArea.innerHTML = `
+            <div class="output-loading">
+                <img id="frog" src="images/frog4.png" alt="Frog">
+                <span>Initializing execution...</span>
+            </div>
+        `;
+        errorOutput.textContent = ""; // Clear previous error messages
+
+        // Validate code input
+        if (!code?.trim()) {
+            throw new Error("The code editor is empty");
+        }
+
+        // Fetch user-defined timeout, clamping it within safe limits
+        const userTimeout = parseInt(localStorage.getItem("executionTimeout")) || DEFAULT_TIMEOUT;
+        const safeTimeout = Math.min(userTimeout, MAX_TIMEOUT);
+
+        console.debug("[Python Execution] Starting", {
+            codeLength: code.length,
+            inputLength: inputData?.length || 0,
+            safeTimeout
         });
 
+        const startTime = performance.now();
+        let response;
+
+        try {
+            response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    code: code,
+                    language: "python",
+                    input_data: inputData || "",
+                    timeout: safeTimeout
+                }),
+                signal: AbortSignal.timeout((safeTimeout + 2) * 1000) // Add 2s buffer
+            });
+        } catch (err) {
+            if (err.name === "AbortError") {
+                throw new Error(`Network request timed out after ${safeTimeout + 2}s`);
+            }
+            throw err;
+        }
+
+        const responseTime = performance.now() - startTime;
+        console.debug(`[Python Execution] Response received in ${responseTime.toFixed(2)}ms`);
+
+        // Handle HTTP errors
         if (!response.ok) {
-            throw new Error(`❌ FastAPI Error: HTTP ${response.status} - ${response.statusText}`);
+            let errorDetails;
+            try {
+                errorDetails = await response.json();
+            } catch {
+                errorDetails = await response.text();
+            }
+
+            const serverMessage = errorDetails.detail || errorDetails.message || JSON.stringify(errorDetails);
+            throw new Error(`Server responded with ${response.status}: ${serverMessage}`);
         }
 
-        const result = await response.json();
+        const data = await response.json();
+        console.debug("[Python Execution] Result:", data);
 
-        if (result.error) {
-            errorOutput.innerText = `❌ Error: ${result.error}`;
+        // Remove frog animation
+        outputArea.innerHTML = "";
+
+        // Display output or failure message
+        if (data.output) {
+            outputArea.innerHTML = `
+                <pre class="success-output">${data.output}</pre>
+                <div class="execution-meta">
+                    ⏳ Execution time: ${responseTime.toFixed(2)}ms | 
+                    Timeout: ${safeTimeout}s
+                </div>
+            `;
         } else {
-            outputArea.innerText = `${result.output}`;
+            outputArea.innerHTML = `
+                <pre class="failure-output">(No output generated)</pre>
+            `;
         }
+
+        // Display error messages if execution failed
+        if (data.error) {
+            errorOutput.innerHTML = `
+                <div class="error-header">⚠️ Execution Log</div>
+                <pre class="error-output">${data.error}</pre>
+            `;
+        }
+
+        return {
+            ...data,
+            executionTime: responseTime,
+            appliedTimeout: safeTimeout,
+            status: "success"
+        };
+
     } catch (error) {
-        console.error("❌ Execution Error:", error);
-        errorOutput.innerText = `❌ Execution Error: ${error.message}`;
+        console.error("[Python Execution] Error:", error);
+
+        let errorMessage = error.message;
+        if (error.message.includes("Failed to fetch")) {
+            errorMessage = "Network error: Could not reach execution server";
+        } else if (error.message.includes("timed out")) {
+            errorMessage = `Execution timed out after ${safeTimeout}s`;
+        }
+
+        errorOutput.innerHTML = `
+            <div class="error-header">❌ Execution Failed</div>
+            <div class="error-message">${errorMessage}</div>
+            ${error.stack ? `<details class="error-details"><summary>Technical details</summary>${error.stack}</details>` : ""}
+        `;
+
+        outputArea.innerHTML = `
+            <pre class="failure-output">(Execution Failed)</pre>
+        `;
+
+        return { error: errorMessage, status: "error", stack: error.stack };
+
     } finally {
-        hideLoadingScreen();
+        console.debug("[Python Execution] Completed");
+        outputArea.classList.remove("loading");
     }
 }
 
