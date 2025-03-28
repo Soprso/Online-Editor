@@ -10,6 +10,12 @@ import shutil
 import signal
 from typing import Optional
 import time
+import clr  # From pythonnet package
+from System import String
+from System.IO import StringReader, StringWriter
+from System.CodeDom.Compiler import CompilerParameters, CodeDomProvider
+from Microsoft.CSharp import CSharpCodeProvider
+import System
 
 app = FastAPI()
 
@@ -216,37 +222,94 @@ async def run_c_cpp(request: CodeRequest):
         except:
             pass
 
-import shutil  # ✅ Add this to check if `dotnet` exists
-
 async def run_csharp(request: CodeRequest):
-    dotnet_path = shutil.which("dotnet")  # ✅ Auto-detect `dotnet` path
-
-    if not dotnet_path:
-        return {"error": "❌ `dotnet` command not found. Ensure .NET SDK is installed in Render."}
-
     try:
-        print(f"🔹 Running C# code using: {dotnet_path} script")  # Debugging log
-
-        process = subprocess.Popen(
-            [dotnet_path, "script", "--eval", request.code],  # ✅ Use full path
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-
-        stdout, stderr = process.communicate(input=request.input_data, timeout=request.timeout)
-
-        return {"output": stdout.strip(), "error": stderr.strip()}
-
-    except subprocess.TimeoutExpired:
-        print("❌ C# Execution Timed Out")
-        return {"error": "C# execution timed out"}
-
+        # Create a C# compiler
+        provider = CSharpCodeProvider()
+        compiler_params = CompilerParameters()
+        compiler_params.GenerateInMemory = True
+        compiler_params.GenerateExecutable = False
+        
+        # Add required assemblies
+        compiler_params.ReferencedAssemblies.Add("System.dll")
+        compiler_params.ReferencedAssemblies.Add("System.Core.dll")
+        compiler_params.ReferencedAssemblies.Add("Microsoft.CSharp.dll")
+        
+        # Wrap code in a class with Main method if needed
+        wrapped_code = request.code
+        if "static void Main(" not in wrapped_code and "static int Main(" not in wrapped_code:
+            wrapped_code = f"""
+using System;
+class Program
+{{
+    static void Main()
+    {{
+        {wrapped_code}
+    }}
+}}
+"""
+        
+        # Compile the code with timeout
+        start_time = time.time()
+        results = None
+        
+        def compile():
+            nonlocal results
+            results = provider.CompileAssemblyFromSource(compiler_params, wrapped_code)
+        
+        # Run compilation in a thread with timeout
+        import threading
+        compile_thread = threading.Thread(target=compile)
+        compile_thread.start()
+        compile_thread.join(timeout=request.timeout)
+        
+        if compile_thread.is_alive():
+            raise HTTPException(status_code=408, detail="C# compilation timed out")
+        
+        if results.Errors.HasErrors:
+            errors = "\n".join(str(e) for e in results.Errors)
+            return {"error": f"C# compilation errors:\n{errors}"}
+        
+        # Find the entry point
+        assembly = results.CompiledAssembly
+        entry_point = assembly.EntryPoint
+        
+        if entry_point is None:
+            return {"error": "No entry point found. Add a static Main method."}
+        
+        # Capture output
+        original_stdout = System.Console.Out
+        string_writer = StringWriter()
+        System.Console.SetOut(string_writer)
+        
+        # Handle input
+        original_stdin = System.Console.In
+        if request.input_data:
+            System.Console.SetIn(StringReader(request.input_data))
+        
+        # Execute with timeout
+        try:
+            execution_thread = threading.Thread(target=entry_point.Invoke, args=(None, None))
+            execution_thread.start()
+            execution_thread.join(timeout=request.timeout - (time.time() - start_time))
+            
+            if execution_thread.is_alive():
+                raise HTTPException(status_code=408, detail="C# execution timed out")
+                
+            output = string_writer.ToString().strip()
+            return {"output": output}
+            
+        except Exception as e:
+            return {"error": f"C# execution error: {str(e)}"}
+            
+        finally:
+            System.Console.SetOut(original_stdout)
+            System.Console.SetIn(original_stdin)
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"❌ Error Running C# Code: {str(e)}")
-        return {"error": str(e)}
-
+        return {"error": f"C# processing error: {str(e)}"}
 
 @app.get("/")
 async def health_check():
