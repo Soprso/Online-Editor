@@ -6,13 +6,17 @@ from pydantic import BaseModel
 import subprocess
 import uuid
 import os
-os.environ["PYTHONNET_RUNTIME"] = "coreclr"  # Force .NET Core
-import clr  # Now it won't look for Mono
 import shutil
 import signal
 from typing import Optional
 import time
-import clr  # From pythonnet package
+import threading
+
+# Configure .NET Core runtime before importing clr
+os.environ["PYTHONNET_RUNTIME"] = "coreclr"
+os.environ["DOTNET_ROOT"] = "/usr/share/dotnet"  # Standard .NET installation path in the container
+
+import clr
 from System import String
 from System.IO import StringReader, StringWriter
 from System.CodeDom.Compiler import CompilerParameters, CodeDomProvider
@@ -226,21 +230,24 @@ async def run_c_cpp(request: CodeRequest):
 
 async def run_csharp(request: CodeRequest):
     try:
-          # Initialize .NET Core runtime (if not done already)
+        # Initialize .NET Core runtime
         if not clr.is_loaded():
-            clr.AddReference("System.Console")  # Basic .NET Core assembly
-        # Create a C# compiler
+            clr.AddReference("System.Console")
+            clr.AddReference("System.Runtime")
+
+        # Create compiler with .NET Core settings
         provider = CSharpCodeProvider()
         compiler_params = CompilerParameters()
         compiler_params.GenerateInMemory = True
         compiler_params.GenerateExecutable = False
         
-        # Add required assemblies
+        # Add core assemblies
         compiler_params.ReferencedAssemblies.Add("System.dll")
         compiler_params.ReferencedAssemblies.Add("System.Core.dll")
         compiler_params.ReferencedAssemblies.Add("Microsoft.CSharp.dll")
+        compiler_params.ReferencedAssemblies.Add("System.Runtime.dll")
         
-        # Wrap code in a class with Main method if needed
+        # Auto-wrap code in Main method if needed
         wrapped_code = request.code
         if "static void Main(" not in wrapped_code and "static int Main(" not in wrapped_code:
             wrapped_code = f"""
@@ -253,8 +260,7 @@ class Program
     }}
 }}
 """
-        
-        # Compile the code with timeout
+        # Compile with timeout
         start_time = time.time()
         results = None
         
@@ -262,8 +268,6 @@ class Program
             nonlocal results
             results = provider.CompileAssemblyFromSource(compiler_params, wrapped_code)
         
-        # Run compilation in a thread with timeout
-        import threading
         compile_thread = threading.Thread(target=compile)
         compile_thread.start()
         compile_thread.join(timeout=request.timeout)
@@ -275,7 +279,6 @@ class Program
             errors = "\n".join(str(e) for e in results.Errors)
             return {"error": f"C# compilation errors:\n{errors}"}
         
-        # Find the entry point
         assembly = results.CompiledAssembly
         entry_point = assembly.EntryPoint
         
@@ -296,7 +299,8 @@ class Program
         try:
             execution_thread = threading.Thread(target=entry_point.Invoke, args=(None, None))
             execution_thread.start()
-            execution_thread.join(timeout=request.timeout - (time.time() - start_time))
+            remaining_time = request.timeout - (time.time() - start_time)
+            execution_thread.join(timeout=max(1, remaining_time))  # Ensure at least 1s
             
             if execution_thread.is_alive():
                 raise HTTPException(status_code=408, detail="C# execution timed out")

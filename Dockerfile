@@ -1,14 +1,20 @@
-FROM python:3.9-slim
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 
-# Install GCC/G++ (required for C/C++ compilation)
-RUN apt-get update && apt-get install -y gcc g++
+# Install Python and C/C++ tools
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip gcc g++ && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy all files to /app in the container
-COPY . /app
 WORKDIR /app
+COPY . .
 
 # Install Python dependencies
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Set environment variables for Python.NET
+ENV PYTHONNET_RUNTIME=coreclr
+ENV DOTNET_ROOT=/usr/share/dotnet
 
 # Start FastAPI
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
