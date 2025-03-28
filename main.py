@@ -14,7 +14,6 @@ import threading
 
 # Configure .NET Core runtime before importing clr
 os.environ["PYTHONNET_RUNTIME"] = "coreclr"
-os.environ["DOTNET_ROOT"] = "/usr/share/dotnet"  # Standard .NET installation path in the container
 
 import clr
 from System import String
@@ -230,18 +229,18 @@ async def run_c_cpp(request: CodeRequest):
 
 async def run_csharp(request: CodeRequest):
     try:
-        # Initialize .NET Core runtime
+        # Initialize .NET runtime
         if not clr.is_loaded():
             clr.AddReference("System.Console")
             clr.AddReference("System.Runtime")
 
-        # Create compiler with .NET Core settings
+        # Create compiler
         provider = CSharpCodeProvider()
         compiler_params = CompilerParameters()
         compiler_params.GenerateInMemory = True
         compiler_params.GenerateExecutable = False
         
-        # Add core assemblies
+        # Add standard assemblies
         compiler_params.ReferencedAssemblies.Add("System.dll")
         compiler_params.ReferencedAssemblies.Add("System.Core.dll")
         compiler_params.ReferencedAssemblies.Add("Microsoft.CSharp.dll")
@@ -300,7 +299,7 @@ class Program
             execution_thread = threading.Thread(target=entry_point.Invoke, args=(None, None))
             execution_thread.start()
             remaining_time = request.timeout - (time.time() - start_time)
-            execution_thread.join(timeout=max(1, remaining_time))  # Ensure at least 1s
+            execution_thread.join(timeout=max(1, remaining_time))
             
             if execution_thread.is_alive():
                 raise HTTPException(status_code=408, detail="C# execution timed out")
