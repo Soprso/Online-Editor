@@ -163,24 +163,46 @@ async def run_c_cpp(request: CodeRequest, timeout: int):
     executable = f"{base_path}"
 
     try:
-        with open(src_file, "w") as f:
+        # Write source file with proper permissions
+        with open(src_file, "w", encoding='utf-8') as f:
             f.write(request.code)
+        os.chmod(src_file, 0o644)  # Set read/write permissions
 
         compiler = "gcc" if request.language == "c" else "g++"
-        compile_flags = ["-std=c++17", "-pthread"] if request.language == "cpp" else []
+        compile_flags = [
+            "-std=c++17" if request.language == "cpp" else "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-O2"  # Enable optimizations
+        ]
+        if request.language == "cpp":
+            compile_flags.append("-pthread")
+
         compile_command = [compiler, src_file, "-o", executable] + compile_flags
 
-        # Limit compile time to 10 seconds or 1/3 of total timeout
-        compile_timeout = min(10, timeout // 3)
-        compile_result = subprocess.run(
-            compile_command,
-            capture_output=True,
-            text=True,
-            timeout=compile_timeout
-        )
+        # Calculate compile timeout (minimum 5 seconds, maximum 1/3 of total timeout)
+        compile_timeout = max(5, min(10, timeout // 3))
+        
+        try:
+            compile_result = subprocess.run(
+                compile_command,
+                capture_output=True,
+                text=True,
+                timeout=compile_timeout
+            )
+        except subprocess.TimeoutExpired:
+            raise HTTPException(
+                status_code=408,
+                detail=f"Compilation timed out after {compile_timeout} seconds"
+            )
 
         if compile_result.returncode != 0:
-            return {"error": compile_result.stderr}
+            error_msg = f"Compilation failed:\n{compile_result.stderr}"
+            print(error_msg)
+            return {"error": error_msg}
+
+        # Ensure executable has proper permissions
+        os.chmod(executable, 0o755)  # Make executable
 
         process = None
         try:
@@ -189,6 +211,7 @@ async def run_c_cpp(request: CodeRequest, timeout: int):
                 'stdout': subprocess.PIPE,
                 'stderr': subprocess.PIPE,
                 'text': True,
+                'cwd': temp_dir  # Run in the temp directory
             }
             
             if os.name == 'posix':
@@ -197,18 +220,21 @@ async def run_c_cpp(request: CodeRequest, timeout: int):
                 kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
 
             process = subprocess.Popen(
-                [f"./{executable}"],
+                [f"./{os.path.basename(executable)}"],  # Use relative path
                 **kwargs
             )
 
             try:
                 stdout, stderr = process.communicate(
                     input=request.input_data,
-                    timeout=timeout - compile_timeout  # Remaining time after compilation
+                    timeout=max(1, timeout - compile_timeout)  # Ensure at least 1s for execution
                 )
             except subprocess.TimeoutExpired:
                 terminate_process(process)
-                raise
+                raise HTTPException(
+                    status_code=408,
+                    detail=f"Execution timed out after {timeout - compile_timeout} seconds"
+                )
 
             return {
                 "output": stdout.strip(),
@@ -218,21 +244,32 @@ async def run_c_cpp(request: CodeRequest, timeout: int):
         except Exception as e:
             if process:
                 terminate_process(process)
-            raise
+            raise HTTPException(
+                status_code=500,
+                detail=f"Execution failed: {str(e)}"
+            )
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
     finally:
+        # Cleanup with better error handling
         for f in [src_file, executable]:
             try:
                 if os.path.exists(f):
                     os.remove(f)
-            except:
-                pass
+            except Exception as e:
+                print(f"Warning: Failed to remove {f}: {str(e)}")
+        
         try:
             if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-        except:
-            pass
-
+                shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception as e:
+            print(f"Warning: Failed to remove temp directory {temp_dir}: {str(e)}")
 @app.get("/")
 async def health_check():
     return {"status": "running"}

@@ -375,7 +375,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
     const MAX_TIMEOUT = 30; // Maximum allowed timeout (in seconds)
     const MIN_TIMEOUT = 1;  // Minimum allowed timeout
     const DEFAULT_TIMEOUT = 5; // Default timeout value
-  
+
     try {
         // Validate DOM elements
         if (!outputArea || !errorOutput) {
@@ -385,7 +385,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
                 status: "error"
             };
         }
-  
+
         // Clear previous outputs and show loading animation
         outputArea.innerHTML = `
             <div class="output-loading">
@@ -394,16 +394,16 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
             </div>
         `;
         errorOutput.textContent = "";
-  
+
         // Validate code input
         if (!code?.trim()) {
             throw new Error("The code editor is empty. Please enter some code.");
         }
-  
+
         // Get user-defined timeout from localStorage (default if not set)
         const userTimeout = parseInt(localStorage.getItem("executionTimeout")) || DEFAULT_TIMEOUT;
         const executionTimeout = Math.max(MIN_TIMEOUT, Math.min(userTimeout, MAX_TIMEOUT));
-  
+
         console.debug("[C++ Execution] Starting", {
             language,
             codeLength: code.length,
@@ -411,11 +411,11 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
             userTimeout,
             executionTimeout
         });
-  
+
         // Track execution time
         const startTime = performance.now();
         let response;
-  
+
         try {
             response = await fetch(API_URL, {
                 method: "POST",
@@ -433,14 +433,14 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
             });
         } catch (fetchError) {
             if (fetchError.name === "AbortError") {
-                throw new Error(`Network request timed out after ${executionTimeout + 2}s`);
+                throw new Error(`Request timed out after ${executionTimeout + 2} seconds`);
             }
             throw fetchError;
         }
-  
+
         const responseTime = performance.now() - startTime;
         console.debug(`[C++ Execution] Response received in ${responseTime.toFixed(2)}ms`);
-  
+
         // Handle HTTP errors
         if (!response.ok) {
             let errorDetails;
@@ -449,15 +449,15 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
             } catch {
                 errorDetails = await response.text();
             }
-  
+
             const serverMessage = errorDetails.detail || errorDetails.message || JSON.stringify(errorDetails);
             throw new Error(`Server responded with ${response.status}: ${serverMessage}`);
         }
-  
+
         // Process response data
         const data = await response.json();
         console.debug("[C++ Execution] Result:", data);
-  
+
         // Display output
         if (data.output) {
             outputArea.innerHTML = `
@@ -472,7 +472,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
                 <pre class="failure-output">(No output generated)</pre>
             `;
         }
-  
+
         // Display error logs
         if (data.error) {
             errorOutput.innerHTML = `
@@ -480,37 +480,35 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
                 <pre class="error-output">${data.error}</pre>
             `;
         }
-  
+
         return {
             ...data,
             executionTime: responseTime,
             appliedTimeout: executionTimeout,
             status: "success"
         };
-  
+
     } catch (error) {
         console.error("[C++ Execution] Error:", error);
-  
+
         // User-friendly error messages
         let errorMessage = error.message;
         if (error.message.includes("Failed to fetch")) {
             errorMessage = "Network error: Could not reach execution server.";
         } else if (error.message.includes("timed out")) {
-            // Extract timeout duration from error message or use executionTimeout
-            const timeoutMatch = error.message.match(/(\d+)\s*seconds?/i);
-            errorMessage = timeoutMatch 
-                ? `Execution timed out after ${timeoutMatch[1]}s`
-                : `Execution timed out after ${executionTimeout}s`;
+            // Extract the actual timeout value from the error message
+            const timeoutValue = error.message.match(/\d+/)?.[0] || executionTimeout;
+            errorMessage = `Execution timed out after ${timeoutValue}s`;
         }
-  
+
         errorOutput.innerHTML = `
             <div class="error-header">❌ Execution Failed</div>
             <div class="error-message">${errorMessage}</div>
             ${error.stack ? `<details class="error-details"><summary>Technical details</summary><pre>${error.stack}</pre></details>` : ""}
         `;
-  
+
         outputArea.textContent = "";
-  
+
         return {
             error: errorMessage,
             status: "error",
@@ -520,7 +518,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
         console.debug("[C++ Execution] Completed");
         outputArea.classList.remove("loading");
     }
-  }
+}
 
   // ===============================
   // ✅ SQL Execution Function
