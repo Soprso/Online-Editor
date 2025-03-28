@@ -496,7 +496,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
       if (error.message.includes("Failed to fetch")) {
           errorMessage = "Network error: Could not reach execution server.";
       } else if (error.message.includes("timed out")) {
-          errorMessage = `Execution timed out after ${MAX_TIMEOUT/1000}s.`;
+          errorMessage = `Execution timed out after ${executionTimeout}s.`;
       }
 
       errorOutput.innerHTML = `
