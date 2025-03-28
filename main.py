@@ -6,6 +6,8 @@ from pydantic import BaseModel
 import subprocess
 import uuid
 import os
+os.environ["PYTHONNET_RUNTIME"] = "coreclr"  # Force .NET Core
+import clr  # Now it won't look for Mono
 import shutil
 import signal
 from typing import Optional
@@ -224,6 +226,9 @@ async def run_c_cpp(request: CodeRequest):
 
 async def run_csharp(request: CodeRequest):
     try:
+          # Initialize .NET Core runtime (if not done already)
+        if not clr.is_loaded():
+            clr.AddReference("System.Console")  # Basic .NET Core assembly
         # Create a C# compiler
         provider = CSharpCodeProvider()
         compiler_params = CompilerParameters()
