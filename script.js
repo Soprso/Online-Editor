@@ -433,7 +433,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
             });
         } catch (fetchError) {
             if (fetchError.name === "AbortError") {
-                throw new Error(`Request timed out after ${executionTimeout + 2} seconds`);
+                throw new Error(`Execution timed out after ${executionTimeout} seconds (including network buffer)`);
             }
             throw fetchError;
         }
@@ -450,8 +450,13 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
                 errorDetails = await response.text();
             }
 
+            // Extract the actual timeout value from server response if available
+            const serverTimeout = errorDetails.detail?.match(/(\d+) seconds?/)?.[1];
             const serverMessage = errorDetails.detail || errorDetails.message || JSON.stringify(errorDetails);
-            throw new Error(`Server responded with ${response.status}: ${serverMessage}`);
+            
+            throw new Error(serverTimeout 
+                ? `Execution timed out after ${serverTimeout} seconds` 
+                : `Server responded with ${response.status}: ${serverMessage}`);
         }
 
         // Process response data
@@ -492,19 +497,28 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
         console.error("[C++ Execution] Error:", error);
 
         // User-friendly error messages
-        let errorMessage = error.message;
+        let errorMessage;
         if (error.message.includes("Failed to fetch")) {
             errorMessage = "Network error: Could not reach execution server.";
         } else if (error.message.includes("timed out")) {
-            // Extract the actual timeout value from the error message
-            const timeoutValue = error.message.match(/\d+/)?.[0] || executionTimeout;
-            errorMessage = `Execution timed out after ${timeoutValue}s`;
+            // Extract timeout value from either the error message or use executionTimeout
+            const timeoutValue = error.message.match(/(\d+)\s*seconds?/i)?.[1] || executionTimeout;
+            errorMessage = `Execution timed out after ${timeoutValue} seconds`;
+        } else {
+            errorMessage = error.message;
         }
 
+        // Format error output with clear timeout information
         errorOutput.innerHTML = `
             <div class="error-header">❌ Execution Failed</div>
             <div class="error-message">${errorMessage}</div>
-            ${error.stack ? `<details class="error-details"><summary>Technical details</summary><pre>${error.stack}</pre></details>` : ""}
+            ${error.stack ? `
+            <details class="error-details">
+                <summary>Technical details</summary>
+                <pre>${error.stack}</pre>
+                <div class="timeout-info">Configured timeout: ${executionTimeout}s</div>
+            </details>
+            ` : ''}
         `;
 
         outputArea.textContent = "";
@@ -512,6 +526,7 @@ async function runC_CPP(code, language, outputArea, errorOutput, inputData) {
         return {
             error: errorMessage,
             status: "error",
+            timeout: executionTimeout,  // Explicitly include timeout in return object
             stack: error.stack
         };
     } finally {
