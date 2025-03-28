@@ -29,7 +29,7 @@ app.add_middleware(
 
 class CodeRequest(BaseModel):
     code: str
-    language: str  # "python", "c", "cpp", "csharp"
+    language: str  # "python", "c", "cpp"
     input_data: str = ""
     timeout: Optional[int] = None  # Make timeout optional
 
@@ -63,8 +63,6 @@ async def run_code(request: CodeRequest):
             result = await run_python(request, effective_timeout)
         elif request.language in ["c", "cpp"]:
             result = await run_c_cpp(request, effective_timeout)
-        elif request.language == "csharp":
-            result = await run_csharp(request, effective_timeout)
         else:
             raise HTTPException(status_code=400, detail="Unsupported language")
             
@@ -229,90 +227,6 @@ async def run_c_cpp(request: CodeRequest, timeout: int):
                     os.remove(f)
             except:
                 pass
-        try:
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-        except:
-            pass
-
-async def run_csharp(request: CodeRequest, timeout: int):
-    temp_dir = "temp_exec"
-    os.makedirs(temp_dir, exist_ok=True)
-    base_path = os.path.join(temp_dir, str(uuid.uuid4()))
-    src_file = f"{base_path}.cs"
-    executable = f"{base_path}.dll"
-
-    try:
-        # Write C# code to file
-        with open(src_file, "w") as f:
-            f.write(request.code)
-
-        # Compile using dotnet
-        compile_result = subprocess.run(
-            ["dotnet", "new", "console", "-o", temp_dir, "--force"],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-
-        if compile_result.returncode != 0:
-            return {"error": compile_result.stderr}
-
-        # Replace Program.cs with user code
-        os.replace(src_file, os.path.join(temp_dir, "Program.cs"))
-
-        # Build the project
-        build_result = subprocess.run(
-            ["dotnet", "build", temp_dir, "-o", temp_dir],
-            capture_output=True,
-            text=True,
-            timeout=timeout // 2  # Use half of timeout for compilation
-        )
-
-        if build_result.returncode != 0:
-            return {"error": build_result.stderr}
-
-        # Run the compiled program
-        process = None
-        try:
-            kwargs = {
-                'stdin': subprocess.PIPE,
-                'stdout': subprocess.PIPE,
-                'stderr': subprocess.PIPE,
-                'text': True,
-                'cwd': temp_dir
-            }
-            
-            if os.name == 'posix':
-                kwargs['preexec_fn'] = os.setsid
-            else:
-                kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
-
-            process = subprocess.Popen(
-                ["dotnet", "run", "--no-build"],
-                **kwargs
-            )
-
-            try:
-                stdout, stderr = process.communicate(
-                    input=request.input_data,
-                    timeout=timeout - (timeout // 2)  # Remaining time after compilation
-                )
-            except subprocess.TimeoutExpired:
-                terminate_process(process)
-                raise
-
-            return {
-                "output": stdout.strip(),
-                "error": stderr.strip()
-            }
-
-        except Exception as e:
-            if process:
-                terminate_process(process)
-            raise
-
-    finally:
         try:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
