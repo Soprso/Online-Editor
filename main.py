@@ -13,6 +13,11 @@ from typing import Optional
 
 app = FastAPI()
 
+# Configuration
+MAX_TIMEOUT = 60  # Maximum allowed timeout in seconds (matches frontend)
+MIN_TIMEOUT = 1   # Minimum allowed timeout
+DEFAULT_TIMEOUT = 5  # Default timeout if none specified
+
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
@@ -26,7 +31,7 @@ class CodeRequest(BaseModel):
     code: str
     language: str  # "python", "c", "cpp"
     input_data: str = ""
-    timeout: int = 5  # Default timeout in seconds
+    timeout: Optional[int] = None  # Make timeout optional
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
@@ -36,19 +41,27 @@ async def global_exception_handler(request, exc):
         headers={"Access-Control-Allow-Origin": "*"}
     )
 
+def get_effective_timeout(request_timeout: Optional[int]) -> int:
+    """Determine the effective timeout with safety limits"""
+    if request_timeout is None:
+        return DEFAULT_TIMEOUT
+    return min(max(MIN_TIMEOUT, request_timeout), MAX_TIMEOUT)
+
 @app.post("/run-code")
 async def run_code(request: CodeRequest):
     start_time = time.time()
+    effective_timeout = get_effective_timeout(request.timeout)
+    
     try:
-        print(f"Received request for {request.language} code with timeout {request.timeout}s")
+        print(f"Received request for {request.language} code with timeout {effective_timeout}s")
 
         if not request.code.strip():
             raise HTTPException(status_code=400, detail="Empty code")
             
         if request.language == "python":
-            result = await run_python(request)
+            result = await run_python(request, effective_timeout)
         elif request.language in ["c", "cpp"]:
-            result = await run_c_cpp(request)
+            result = await run_c_cpp(request, effective_timeout)
         else:
             raise HTTPException(status_code=400, detail="Unsupported language")
             
@@ -59,7 +72,10 @@ async def run_code(request: CodeRequest):
     except subprocess.TimeoutExpired:
         execution_time = time.time() - start_time
         print(f"Timeout occurred after {execution_time:.2f} seconds")
-        raise HTTPException(status_code=408, detail="Execution timed out")
+        raise HTTPException(
+            status_code=408, 
+            detail=f"Execution timed out after {effective_timeout} seconds"
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -90,7 +106,7 @@ def terminate_process(process):
     except Exception as e:
         print(f"Error terminating process: {e}")
 
-async def run_python(request: CodeRequest):
+async def run_python(request: CodeRequest, timeout: int):
     try:
         formatted_code = black.format_str(request.code, mode=black.Mode())
         code_to_run = formatted_code
@@ -122,11 +138,11 @@ async def run_python(request: CodeRequest):
         try:
             stdout, stderr = process.communicate(
                 input=request.input_data,
-                timeout=request.timeout
+                timeout=timeout
             )
         except subprocess.TimeoutExpired:
             terminate_process(process)
-            raise HTTPException(status_code=408, detail="Python execution timed out")
+            raise
 
         return {
             "output": stdout.strip(),
@@ -138,7 +154,7 @@ async def run_python(request: CodeRequest):
             terminate_process(process)
         raise HTTPException(status_code=500, detail=str(e))
 
-async def run_c_cpp(request: CodeRequest):
+async def run_c_cpp(request: CodeRequest, timeout: int):
     temp_dir = "temp_exec"
     os.makedirs(temp_dir, exist_ok=True)
     base_path = os.path.join(temp_dir, str(uuid.uuid4()))
@@ -153,11 +169,13 @@ async def run_c_cpp(request: CodeRequest):
         compile_flags = ["-std=c++17", "-pthread"] if request.language == "cpp" else []
         compile_command = [compiler, src_file, "-o", executable] + compile_flags
 
+        # Limit compile time to 10 seconds or the execution timeout, whichever is smaller
+        compile_timeout = min(10, timeout)
         compile_result = subprocess.run(
             compile_command,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=compile_timeout
         )
 
         if compile_result.returncode != 0:
@@ -185,11 +203,11 @@ async def run_c_cpp(request: CodeRequest):
             try:
                 stdout, stderr = process.communicate(
                     input=request.input_data,
-                    timeout=request.timeout
+                    timeout=timeout - (time.time() - start_time)  # Remaining time after compilation
                 )
             except subprocess.TimeoutExpired:
                 terminate_process(process)
-                raise HTTPException(status_code=408, detail="Execution timed out")
+                raise
 
             return {
                 "output": stdout.strip(),
